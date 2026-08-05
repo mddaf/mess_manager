@@ -211,15 +211,14 @@ class UserProfileScreen extends StatelessWidget {
                             currentPassword: currentPassCtrl.text,
                             newPassword: newPassCtrl.text,
                           );
+                          if (!context.mounted) return;
                           Navigator.pop(ctx);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Password changed successfully!'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Password changed successfully!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
                         } on FirebaseAuthException catch (e) {
                           final msg = e.code == 'wrong-password' ||
                                   e.code == 'invalid-credential'

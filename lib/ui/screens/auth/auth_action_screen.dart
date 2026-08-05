@@ -128,7 +128,7 @@ class _AuthActionScreenState extends State<AuthActionScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              theme.colorScheme.primary.withOpacity(0.08),
+              theme.colorScheme.primary.withValues(alpha: 0.08),
               theme.colorScheme.surface,
             ],
           ),

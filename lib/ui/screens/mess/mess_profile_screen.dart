@@ -157,7 +157,13 @@ class MessProfileScreen extends StatelessWidget {
     );
 
     if (result == true) {
+      if (!context.mounted) return;
       final targetEmail = emailController.text.trim().toLowerCase();
+      final messState = context.read<MessBloc>().state;
+      final messName = messState is MessLoaded ? messState.mess.name : 'Mess';
+      final authState = context.read<AuthBloc>().state;
+      final senderName = authState is Authenticated ? authState.user.name : 'Flatmate';
+
       final code = await repo.createEmailInvite(
         messId: messId,
         targetEmail: targetEmail,
@@ -165,10 +171,6 @@ class MessProfileScreen extends StatelessWidget {
         invitedByRole: currentRole,
       );
 
-      final messState = context.read<MessBloc>().state;
-      final messName = messState is MessLoaded ? messState.mess.name : 'Mess';
-      final authState = context.read<AuthBloc>().state;
-      final senderName = authState is Authenticated ? authState.user.name : 'Flatmate';
       final link = 'https://meal-manager-844f5.web.app/join?code=$code&email=$targetEmail';
 
       // 1. Copy to clipboard
@@ -460,6 +462,10 @@ class MessProfileScreen extends StatelessWidget {
     }
 
     // All guards passed — confirm and leave
+    final repo = context.read<MessRepository>();
+    final authBloc = context.read<AuthBloc>();
+    final router = GoRouter.of(context);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -484,9 +490,6 @@ class MessProfileScreen extends StatelessWidget {
 
     if (confirmed == true) {
       try {
-        final repo = context.read<MessRepository>();
-        final authBloc = context.read<AuthBloc>();
-        final router = GoRouter.of(context);
         await repo.leaveMess(messId: messId, userId: currentUserId);
         if (!context.mounted) return;
         authBloc.add(AuthCheckRequested());
@@ -503,6 +506,10 @@ class MessProfileScreen extends StatelessWidget {
 
   Future<void> _deleteAsLastMember(
       BuildContext context, String currentUserId) async {
+    final repo = context.read<MessRepository>();
+    final authBloc = context.read<AuthBloc>();
+    final router = GoRouter.of(context);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -524,9 +531,6 @@ class MessProfileScreen extends StatelessWidget {
     );
     if (confirmed == true) {
       try {
-        final repo = context.read<MessRepository>();
-        final authBloc = context.read<AuthBloc>();
-        final router = GoRouter.of(context);
         await repo.deleteMess(messId: messId, userId: currentUserId);
         if (!context.mounted) return;
         authBloc.add(AuthCheckRequested());

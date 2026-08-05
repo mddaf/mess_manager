@@ -115,8 +115,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              theme.colorScheme.primary.withOpacity(0.08),
-              theme.colorScheme.secondary.withOpacity(0.05),
+              theme.colorScheme.primary.withValues(alpha: 0.08),
+              theme.colorScheme.secondary.withValues(alpha: 0.05),
               theme.colorScheme.surface,
             ],
           ),
@@ -149,7 +149,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: theme.colorScheme.primary.withOpacity(0.4),
+                            color: theme.colorScheme.primary.withValues(alpha: 0.4),
                             blurRadius: 24,
                             offset: const Offset(0, 8),
                           ),
