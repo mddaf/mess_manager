@@ -66,6 +66,11 @@ class AuthRepository {
     );
   }
 
+  static final _actionCodeSettings = ActionCodeSettings(
+    url: 'https://meal-manager-844f5.web.app/action',
+    handleCodeInApp: true,
+  );
+
   Future<UserCredential> signUpWithEmailAndPassword({
     required String email,
     required String password,
@@ -92,22 +97,25 @@ class AuthRepository {
 
       await credential.user!.updateDisplayName(name.trim());
 
-      // Send email verification immediately after sign up
-      await credential.user!.sendEmailVerification();
+      // Send email verification with custom action URL settings
+      await credential.user!.sendEmailVerification(_actionCodeSettings);
     } catch (_) {}
 
     return credential;
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
-    await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
+    await _firebaseAuth.sendPasswordResetEmail(
+      email: email.trim(),
+      actionCodeSettings: _actionCodeSettings,
+    );
   }
 
   /// Resend verification email to the current signed-in user
   Future<void> resendVerificationEmail() async {
     final user = _firebaseAuth.currentUser;
     if (user != null && !user.emailVerified) {
-      await user.sendEmailVerification();
+      await user.sendEmailVerification(_actionCodeSettings);
     }
   }
 

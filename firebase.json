@@ -45,6 +45,13 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "source": "/__/auth/action",
+        "destination": "/action",
+        "type": 301
+      }
+    ],
     "rewrites": [
       {
         "source": "**",
