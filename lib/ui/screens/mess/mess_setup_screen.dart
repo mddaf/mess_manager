@@ -122,7 +122,8 @@ class _MessSetupScreenState extends State<MessSetupScreen>
 
     return BlocListener<MessBloc, MessState>(
       listener: (context, state) {
-        if (state is MessLoaded) {
+        // Only redirect if we have a valid mess ID (guards against stale state after deletion)
+        if (state is MessLoaded && state.mess.id.isNotEmpty) {
           context.go('/home?messId=${state.mess.id}');
         }
       },

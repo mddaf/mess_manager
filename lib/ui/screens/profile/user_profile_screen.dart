@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -99,6 +100,167 @@ class UserProfileScreen extends StatelessWidget {
         );
       }
     }
+  }
+
+  Future<void> _showChangePasswordDialog(BuildContext context) async {
+    final authRepo = context.read<AuthRepository>();
+    final currentPassCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    bool isSubmitting = false;
+
+    String? validatePassword(String? val) {
+      if (val == null || val.isEmpty) return 'Please enter a password';
+      if (val.length < 8) return 'At least 8 characters required';
+      if (!RegExp(r'[A-Z]').hasMatch(val)) return 'Need at least 1 uppercase letter';
+      if (!RegExp(r'[a-z]').hasMatch(val)) return 'Need at least 1 lowercase letter';
+      if (!RegExp(r'[0-9]').hasMatch(val)) return 'Need at least 1 number';
+      if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(val)) {
+        return 'Need at least 1 special character';
+      }
+      return null;
+    }
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Change Password'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: currentPassCtrl,
+                    obscureText: obscureCurrent,
+                    decoration: InputDecoration(
+                      labelText: 'Current Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureCurrent
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
+                        onPressed: () => setDialogState(
+                            () => obscureCurrent = !obscureCurrent),
+                      ),
+                    ),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Enter current password' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: newPassCtrl,
+                    obscureText: obscureNew,
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      prefixIcon: const Icon(Icons.lock_reset_rounded),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureNew
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
+                        onPressed: () =>
+                            setDialogState(() => obscureNew = !obscureNew),
+                      ),
+                    ),
+                    validator: validatePassword,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: confirmPassCtrl,
+                    obscureText: obscureConfirm,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm New Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureConfirm
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
+                        onPressed: () => setDialogState(
+                            () => obscureConfirm = !obscureConfirm),
+                      ),
+                    ),
+                    validator: (v) => v != newPassCtrl.text
+                        ? 'Passwords do not match'
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            StatefulBuilder(
+              builder: (ctx2, setBtn) => ElevatedButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setBtn(() => isSubmitting = true);
+                        try {
+                          await authRepo.changePassword(
+                            currentPassword: currentPassCtrl.text,
+                            newPassword: newPassCtrl.text,
+                          );
+                          Navigator.pop(ctx);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Password changed successfully!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } on FirebaseAuthException catch (e) {
+                          final msg = e.code == 'wrong-password' ||
+                                  e.code == 'invalid-credential'
+                              ? 'Current password is incorrect.'
+                              : e.message ?? e.code;
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(msg),
+                                  backgroundColor: Colors.red),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(e.toString()),
+                                  backgroundColor: Colors.red),
+                            );
+                          }
+                        } finally {
+                          setBtn(() => isSubmitting = false);
+                        }
+                      },
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child:
+                            CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Change Password'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    currentPassCtrl.dispose();
+    newPassCtrl.dispose();
+    confirmPassCtrl.dispose();
   }
 
   @override
@@ -240,14 +402,34 @@ class UserProfileScreen extends StatelessWidget {
                         const Divider(height: 1),
                         ListTile(
                           leading: const Icon(Icons.g_mobiledata_rounded, size: 28),
-                          title: const Text('Google Account Binding'),
-                          subtitle: Text(user.avatarUrl != null
-                              ? 'Bound to Google Account'
-                              : 'Not Linked'),
+                          title: const Text('Google Account'),
+                          subtitle: Builder(builder: (ctx) {
+                            final providerData = FirebaseAuth
+                                    .instance.currentUser?.providerData ?? [];
+                            final isLinked = providerData
+                                .any((p) => p.providerId == 'google.com');
+                            return Text(isLinked
+                                ? '✅ Linked to Google Account'
+                                : 'Not linked');
+                          }),
                           trailing: OutlinedButton(
                             onPressed: () => _linkGoogleAccount(context),
-                            child: Text(user.avatarUrl != null ? 'Change Google' : 'Bind Google'),
+                            child: Builder(builder: (ctx) {
+                              final providerData = FirebaseAuth
+                                      .instance.currentUser?.providerData ?? [];
+                              final isLinked = providerData
+                                  .any((p) => p.providerId == 'google.com');
+                              return Text(isLinked ? 'Change' : 'Link Google');
+                            }),
                           ),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.lock_reset_rounded),
+                          title: const Text('Change Password'),
+                          subtitle: const Text('Update your account password'),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => _showChangePasswordDialog(context),
                         ),
                         const Divider(height: 1),
                         ListTile(

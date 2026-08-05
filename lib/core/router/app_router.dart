@@ -6,6 +6,8 @@ import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../ui/screens/auth/login_screen.dart';
 import '../../ui/screens/auth/register_screen.dart';
+import '../../ui/screens/auth/verify_email_screen.dart';
+import '../../ui/screens/auth/auth_action_screen.dart';
 import '../../ui/screens/home/home_screen.dart';
 import '../../ui/screens/mess/mess_setup_screen.dart';
 import '../../ui/screens/profile/user_profile_screen.dart';
@@ -63,17 +65,32 @@ GoRouter buildAppRouter(AuthBloc authBloc) {
         return loc == '/splash' ? null : '/splash';
       }
 
-      // 2. Not authenticated
+      // 2. Not authenticated — allow only public routes
       if (authState is Unauthenticated || authState is AuthError) {
+        // /action route is always public (email verification / password reset links)
+        if (loc == '/action') return null;
         final isAuthRoute = loc == '/login' || loc == '/register';
         return isAuthRoute ? null : '/login';
       }
 
       // 3. Authenticated
       if (authState is Authenticated) {
-        // Don't stay on splash or auth pages
-        final isPublicRoute =
-            loc == '/splash' || loc == '/login' || loc == '/register';
+        final emailVerified =
+            FirebaseAuth.instance.currentUser?.emailVerified ?? false;
+
+        // /action route is always accessible
+        if (loc == '/action') return null;
+
+        // Force email verification gate for unverified users
+        if (!emailVerified) {
+          return loc == '/verify-email' ? null : '/verify-email';
+        }
+
+        // Verified: don't stay on splash, auth, or verify pages
+        final isPublicRoute = loc == '/splash' ||
+            loc == '/login' ||
+            loc == '/register' ||
+            loc == '/verify-email';
         if (isPublicRoute) return '/setup';
       }
 
@@ -93,6 +110,19 @@ GoRouter buildAppRouter(AuthBloc authBloc) {
         builder: (context, state) => const RegisterScreen(),
       ),
       GoRoute(
+        path: '/verify-email',
+        builder: (context, state) => const VerifyEmailScreen(),
+      ),
+      // Custom Firebase email action handler (verify email + reset password)
+      GoRoute(
+        path: '/action',
+        builder: (context, state) {
+          final mode = state.uri.queryParameters['mode'] ?? '';
+          final oobCode = state.uri.queryParameters['oobCode'] ?? '';
+          return AuthActionScreen(mode: mode, oobCode: oobCode);
+        },
+      ),
+      GoRoute(
         path: '/setup',
         builder: (context, state) => const MessSetupScreen(),
       ),
@@ -110,3 +140,5 @@ GoRouter buildAppRouter(AuthBloc authBloc) {
     ],
   );
 }
+
+

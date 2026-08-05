@@ -150,13 +150,42 @@ class AuthRepository {
       await user.linkWithCredential(credential);
     }
 
-    // Refresh UserProfile document with new avatar/email metadata
-    await _firestore
-        .collection(AppConstants.collectionUsers)
-        .doc(user.uid)
-        .update({
-      'avatarUrl': user.photoURL,
-    });
+    // Reload user to get updated providerData and photoURL from Firebase Auth
+    await _firebaseAuth.currentUser?.reload();
+    final refreshedUser = _firebaseAuth.currentUser;
+
+    // Update Firestore UserProfile with Google avatar and linked flag
+    if (refreshedUser != null) {
+      final updates = <String, dynamic>{'googleLinked': true};
+      if (refreshedUser.photoURL != null) {
+        updates['avatarUrl'] = refreshedUser.photoURL;
+      }
+      await _firestore
+          .collection(AppConstants.collectionUsers)
+          .doc(refreshedUser.uid)
+          .update(updates);
+    }
+  }
+
+  /// Change password — re-authenticates first, then updates password
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null || user.email == null) {
+      throw Exception('No authenticated user found.');
+    }
+
+    // Re-authenticate with current password before changing
+    final credential = EmailAuthProvider.credential(
+      email: user.email!,
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(credential);
+
+    // Update to new password
+    await user.updatePassword(newPassword);
   }
 
   Future<void> signOut() async {

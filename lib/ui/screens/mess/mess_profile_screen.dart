@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../blocs/auth/auth_bloc.dart';
+import '../../../blocs/auth/auth_event.dart';
 import '../../../blocs/auth/auth_state.dart';
 import '../../../blocs/mess/mess_bloc.dart';
 import '../../../blocs/mess/mess_state.dart';
@@ -161,21 +163,59 @@ class MessProfileScreen extends StatelessWidget {
         invitedByRole: currentRole,
       );
 
+      final messState = context.read<MessBloc>().state;
+      final messName = messState is MessLoaded ? messState.mess.name : 'Mess';
       final link = 'https://meal-manager-844f5.web.app/join?code=$code&email=$targetEmail';
+
+      // Copy to clipboard
       Clipboard.setData(ClipboardData(text: link));
+
+      // Open email client with pre-filled invite
+      final subject = Uri.encodeComponent('You are invited to join $messName on Mess Manager');
+      final body = Uri.encodeComponent(
+        'Hi,\n\nYou have been invited to join $messName on Mess Manager.\n\n'
+        'Your invite code: $code\n\n'
+        'Click the link below to join (you must register/login with this email address):\n'
+        '$link\n\n'
+        'This invite is bound to this email address only.\n\nCheers,\nMess Manager',
+      );
+      final mailtoUri = Uri.parse('mailto:$targetEmail?subject=$subject&body=$body');
+
+      try {
+        await launchUrl(mailtoUri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        // Email app not available — show dialog with link
+      }
 
       if (context.mounted) {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Email Invite Link Created!'),
-            content: SelectableText(
-              'Invite Code: $code\nBound Email: $targetEmail\n\nDirect Link:\n$link\n\n(Copied to Clipboard!)',
+            title: const Text('Invite Link Created!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('📧 Email app opened with pre-filled invite (if available).'),
+                const SizedBox(height: 8),
+                const Text('Invite Code:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                SelectableText(code,
+                    style: const TextStyle(letterSpacing: 3, fontSize: 18)),
+                const SizedBox(height: 8),
+                const Text('Bound Email:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                SelectableText(targetEmail),
+                const SizedBox(height: 8),
+                const Text('Direct Link (copied to clipboard):',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                SelectableText(link, style: const TextStyle(fontSize: 11)),
+              ],
             ),
             actions: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
+                child: const Text('Done'),
               ),
             ],
           ),
@@ -248,6 +288,7 @@ class MessProfileScreen extends StatelessWidget {
 
   Future<void> _deleteMess(BuildContext context, String userId) async {
     final repo = context.read<MessRepository>();
+    final authBloc = context.read<AuthBloc>();
     final router = GoRouter.of(context);
 
     final confirmed = await showDialog<bool>(
@@ -258,7 +299,7 @@ class MessProfileScreen extends StatelessWidget {
         title: const Text('Delete Mess'),
         content: const Text(
           'This will permanently delete the mess and all its data '
-          '(meals, groceries, settlements). This action cannot be undone.',
+          '(meals, groceries, deposits, settlements). This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -281,7 +322,153 @@ class MessProfileScreen extends StatelessWidget {
       try {
         await repo.deleteMess(messId: messId, userId: userId);
         if (!context.mounted) return;
-        router.go('/setup');
+        // Reload auth profile (clears messIds) before navigating to prevent back-loop
+        authBloc.add(AuthCheckRequested());
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (context.mounted) router.go('/setup');
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _leaveMess(
+      BuildContext context,
+      String currentUserId,
+      String currentRole,
+      Mess mess,
+      List<Member> members) async {
+    final approvedMembers =
+        members.where((m) => m.status == 'approved').toList();
+
+    // Guard 1: Only admin in the mess must promote another admin first
+    final isOnlyAdmin = currentRole == 'admin' &&
+        approvedMembers.where((m) => m.role == 'admin').length == 1;
+
+    // Guard 2: Must rotate manager first if they are current manager
+    final isManager = mess.currentManagerId == currentUserId;
+
+    final otherMembers =
+        approvedMembers.where((m) => m.userId != currentUserId).toList();
+
+    if (otherMembers.isEmpty) {
+      // Last member — just delete the mess
+      await _deleteAsLastMember(context, currentUserId);
+      return;
+    }
+
+    if (isOnlyAdmin && isManager) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              '⚠️ You must promote another Admin AND assign a new Manager before leaving.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    if (isOnlyAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              '⚠️ You are the only Admin. Promote another member to Admin before leaving.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    if (isManager) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              '⚠️ You are the current Manager. Assign a new Manager before leaving.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    // All guards passed — confirm and leave
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.exit_to_app_rounded, size: 40, color: Colors.orange),
+        title: const Text('Leave Mess'),
+        content: const Text(
+            'Are you sure you want to leave this mess? You can rejoin with an invite code.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange, foregroundColor: Colors.white),
+            child: const Text('Leave Mess'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final repo = context.read<MessRepository>();
+        final authBloc = context.read<AuthBloc>();
+        final router = GoRouter.of(context);
+        await repo.leaveMess(messId: messId, userId: currentUserId);
+        if (!context.mounted) return;
+        authBloc.add(AuthCheckRequested());
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (context.mounted) router.go('/setup');
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAsLastMember(
+      BuildContext context, String currentUserId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Mess'),
+        content: const Text(
+            'You are the last member. Leaving will permanently delete this mess and all its data.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('Delete & Leave'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      try {
+        final repo = context.read<MessRepository>();
+        final authBloc = context.read<AuthBloc>();
+        final router = GoRouter.of(context);
+        await repo.deleteMess(messId: messId, userId: currentUserId);
+        if (!context.mounted) return;
+        authBloc.add(AuthCheckRequested());
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (context.mounted) router.go('/setup');
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -606,7 +793,37 @@ class MessProfileScreen extends StatelessWidget {
               }),
               const SizedBox(height: 24),
 
-              // ── Danger Zone ──────────────────────────────────────
+              // ── Leave + Danger Zone ─────────────────────────────────
+              Text('Actions',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+
+              // Leave Mess — visible to all members
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.orange.shade300),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.exit_to_app_rounded,
+                      color: Colors.orange),
+                  title: const Text('Leave Mess',
+                      style: TextStyle(color: Colors.orange)),
+                  subtitle: const Text(
+                      'Admin/Manager must reassign roles before leaving.'),
+                  trailing: OutlinedButton(
+                    onPressed: () => _leaveMess(
+                        context, currentUserId, currentMember.role, mess, members),
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange,
+                        side: const BorderSide(color: Colors.orange)),
+                    child: const Text('Leave'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
               if (isAdmin) ...[
                 Text('Danger Zone',
                     style: theme.textTheme.titleMedium?.copyWith(

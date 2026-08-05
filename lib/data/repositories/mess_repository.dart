@@ -279,7 +279,35 @@ class MessRepository {
         .update({'currentManagerId': newManagerId});
   }
 
-  /// Delete mess and all its sub-collections
+  /// Promote a member to admin role
+  Future<void> promoteToAdmin({
+    required String messId,
+    required String memberId,
+  }) async {
+    await _firestore
+        .collection(AppConstants.collectionMesses)
+        .doc(messId)
+        .collection(AppConstants.collectionMembers)
+        .doc(memberId)
+        .update({'role': 'admin'});
+  }
+
+  /// Helper: delete all docs in a sub-collection using chunked batches (max 400 per batch)
+  Future<void> _deleteSubCollection(
+      DocumentReference messRef, String subCollection) async {
+    QuerySnapshot snapshot;
+    do {
+      snapshot = await messRef.collection(subCollection).limit(400).get();
+      if (snapshot.docs.isEmpty) break;
+      final batch = _firestore.batch();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } while (snapshot.docs.length == 400);
+  }
+
+  /// Delete mess and ALL its sub-collections completely from Firestore
   Future<void> deleteMess({
     required String messId,
     required String userId,
@@ -287,31 +315,53 @@ class MessRepository {
     final messRef =
         _firestore.collection(AppConstants.collectionMesses).doc(messId);
 
+    // 1. Remove messId from all member user docs (separate batch)
     final members =
         await messRef.collection(AppConstants.collectionMembers).get();
-    final batch = _firestore.batch();
+    final userBatch = _firestore.batch();
     for (final doc in members.docs) {
-      batch.delete(doc.reference);
-      batch.update(
+      userBatch.update(
         _firestore.collection(AppConstants.collectionUsers).doc(doc.id),
-        {
-          'messIds': FieldValue.arrayRemove([messId])
-        },
+        {'messIds': FieldValue.arrayRemove([messId])},
       );
     }
+    await userBatch.commit();
 
-    final meals = await messRef.collection('mealEntries').get();
-    for (final doc in meals.docs) {
-      batch.delete(doc.reference);
+    // 2. Delete all sub-collections (chunked to stay under 500-doc batch limit)
+    await _deleteSubCollection(messRef, AppConstants.collectionMembers);
+    await _deleteSubCollection(messRef, AppConstants.collectionMealEntries);
+    await _deleteSubCollection(messRef, AppConstants.collectionGroceryEntries);
+    await _deleteSubCollection(messRef, AppConstants.collectionDeposits);
+    await _deleteSubCollection(messRef, AppConstants.collectionSettlements);
+    await _deleteSubCollection(messRef, 'invites');
+
+    // 3. Delete the mess document itself
+    await messRef.delete();
+  }
+
+  /// Leave a mess — removes only the leaving user.
+  /// If they are the last approved member, the entire mess is deleted.
+  Future<void> leaveMess({
+    required String messId,
+    required String userId,
+  }) async {
+    final messRef =
+        _firestore.collection(AppConstants.collectionMesses).doc(messId);
+
+    // Count remaining approved members
+    final membersSnap = await messRef
+        .collection(AppConstants.collectionMembers)
+        .where('status', isEqualTo: 'approved')
+        .get();
+
+    if (membersSnap.docs.length <= 1) {
+      // Last member leaving → delete the entire mess
+      await deleteMess(messId: messId, userId: userId);
+      return;
     }
 
-    final groceries = await messRef.collection('groceryEntries').get();
-    for (final doc in groceries.docs) {
-      batch.delete(doc.reference);
-    }
-
-    batch.delete(messRef);
-    await batch.commit();
+    // Otherwise just remove this member
+    await removeMember(messId: messId, memberId: userId);
   }
 
   Future<void> removeMember({
