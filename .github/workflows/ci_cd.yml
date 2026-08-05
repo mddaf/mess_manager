@@ -3,9 +3,13 @@ name: CI/CD Pipeline & Android APK Build
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   # -------------------------------------------------------------
@@ -46,13 +50,13 @@ jobs:
         run: flutter test
 
   # -------------------------------------------------------------
-  # 🤖 JOB 2: Build Android Release APK (CD)
+  # 🤖 JOB 2: Build Android Release APK & Publish Release (CD)
   # -------------------------------------------------------------
   build_android:
-    name: 🤖 Build Android APK
+    name: 🤖 Build & Publish Android APK
     needs: analyze_and_test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: 📥 Checkout Repository
@@ -86,6 +90,25 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
 
+      - name: 🚀 Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: Mess Manager v1.0.0
+          body: |
+            ## 📱 Mess Manager Android Release (v1.0.0)
+
+            ### ✨ Key Features Included:
+            - **🍱 Real-Time Meal Check-in**: Synchronized breakfast, lunch, dinner toggles across flatmates.
+            - **🛒 Grocery Expense Logging & OCR**: Smart receipt scanner with Google ML Kit text extraction.
+            - **💵 Cash & Bank Deposit Records**: Track member contributions automatically.
+            - **📊 Automated Settlement Calculations**: Meal rate formula and balance tracking.
+            - **🔄 Manager Rotation & Admin Controls**: Rotate manager role or manage members seamlessly.
+
+            ---
+            🌐 **Live Web Version**: [https://meal-manager-844f5.web.app](https://meal-manager-844f5.web.app)
+          files: build/app/outputs/flutter-apk/app-release.apk
+
   # -------------------------------------------------------------
   # 🌐 JOB 3: Build Web Release (CD)
   # -------------------------------------------------------------
@@ -93,7 +116,7 @@ jobs:
     name: 🌐 Build Web Bundle
     needs: analyze_and_test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: 📥 Checkout Repository
