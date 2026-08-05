@@ -42,6 +42,7 @@ abstract class GroceryEntry with _$GroceryEntry {
     SetOptions? options,
   ) {
     final json = entry.toJson();
+    json['items'] = entry.items.map((i) => i.toJson()).toList();
     if (entry.createdAt != null) {
       json['createdAt'] = Timestamp.fromDate(entry.createdAt!);
     }

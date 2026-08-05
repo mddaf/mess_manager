@@ -14,6 +14,7 @@ import '../../../blocs/grocery/grocery_event.dart';
 import '../../../blocs/grocery/grocery_state.dart';
 import '../../../data/services/receipt_parser.dart';
 import '../../../models/grocery_entry.dart';
+import '../../../models/grocery_item.dart';
 
 class AddGroceryScreen extends StatefulWidget {
   final String messId;
@@ -422,6 +423,16 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
 
       final status = isManager ? 'approved' : 'pending';
 
+      final List<GroceryItem> parsedItems = [];
+      for (final item in _itemControllers) {
+        final iName = item['name']?.text.trim() ?? '';
+        final iPriceStr = item['price']?.text.trim() ?? '';
+        final iPrice = double.tryParse(iPriceStr) ?? 0.0;
+        if (iName.isNotEmpty && iPrice > 0) {
+          parsedItems.add(GroceryItem(name: iName, price: iPrice));
+        }
+      }
+
       if (widget.existingEntry != null) {
         // EDIT MODE: Members can edit, but requires manager approval
         final updatedEntry = widget.existingEntry!.copyWith(
@@ -429,6 +440,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
           amount: amount,
           ocrExtractedAmount: _ocrExtractedAmount,
           date: dateStr,
+          items: parsedItems,
           status: status,
         );
 
@@ -460,6 +472,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
           amount: amount,
           ocrExtractedAmount: _ocrExtractedAmount,
           date: dateStr,
+          items: parsedItems,
           status: status,
           createdAt: DateTime.now(),
         );
@@ -526,6 +539,16 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
               setState(() {
                 _descriptionController.text = ocr.extractedItems.join(', ');
               });
+            }
+
+            // Auto-fill item breakdown if items detected and breakdown is empty
+            if (ocr.parsedItems.isNotEmpty && _itemControllers.isEmpty) {
+              for (final item in ocr.parsedItems) {
+                _addBreakdownItem(
+                  name: item.name,
+                  price: item.price.toStringAsFixed(0),
+                );
+              }
             }
 
             _showOcrReviewDialog(ocr);
