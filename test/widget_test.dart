@@ -29,6 +29,35 @@ void main() {
       final total = ReceiptParser.parseTotalAmount(sampleText);
       expect(total, equals(770.00));
     });
+
+    test('Extracts total amount from handwritten paper slip with Bangla numerals and suffix', () {
+      const handwrittenText = '''
+      বাজার খরচ
+      চাল - ১২০/-
+      তেল - ১৮০/=
+      পেঁয়াজ - ৫০
+      ----------------
+      মোট = ৩৫০/-
+      ''';
+
+      final result = ReceiptParser.parse(handwrittenText);
+      expect(result.extractedTotal, equals(350.00));
+      expect(result.candidateAmounts, containsAll([350.0, 180.0, 120.0, 50.0]));
+    });
+
+    test('Extracts total amount from English handwritten slip with suffix', () {
+      const engHandwritten = '''
+      Mess Grocery
+      Rice 150/=
+      Oil 200/-
+      Eggs 100
+      Total = 450/-
+      ''';
+
+      final result = ReceiptParser.parse(engHandwritten);
+      expect(result.extractedTotal, equals(450.00));
+      expect(result.candidateAmounts, containsAll([450.0, 200.0, 150.0, 100.0]));
+    });
   });
 
   group('Core Extensions Tests', () {

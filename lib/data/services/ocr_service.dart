@@ -26,15 +26,7 @@ class OcrService {
       final RecognizedText recognizedText =
           await _textRecognizer!.processImage(inputImage);
 
-      final total = ReceiptParser.parseTotalAmount(recognizedText.text);
-      final items = ReceiptParser.parseItems(recognizedText.text);
-
-      return OcrResult(
-        rawText: recognizedText.text,
-        extractedTotal: total,
-        extractedItems: items,
-        confidence: total != null ? 0.85 : 0.40,
-      );
+      return ReceiptParser.parse(recognizedText.text);
     } catch (e) {
       return OcrResult(
         rawText: 'OCR Error: ${e.toString()}',
