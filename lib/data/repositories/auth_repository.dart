@@ -22,11 +22,6 @@ class AuthRepository {
 
   User? get currentUser => _firebaseAuth.currentUser;
 
-  ActionCodeSettings get _actionCodeSettings => ActionCodeSettings(
-        url: 'https://meal-manager-844f5.web.app',
-        handleCodeInApp: true,
-      );
-
   Future<UserProfile?> getCurrentUserProfile() async {
     final user = currentUser;
     if (user == null) return null;
@@ -42,6 +37,7 @@ class AuthRepository {
       }
     } catch (_) {}
 
+    // Auto-provision profile document if missing
     final newProfile = UserProfile(
       uid: user.uid,
       name: user.displayName ?? user.email?.split('@').first ?? 'Mess Member',
@@ -95,43 +91,27 @@ class AuthRepository {
           .set(UserProfile.toFirestore(userProfile, null));
 
       await credential.user!.updateDisplayName(name.trim());
-    } catch (e) {
-      debugPrint('UserProfile set error: $e');
-    }
 
-    try {
-      // Trigger Email Verification Link with ActionCodeSettings redirect
-      await credential.user!.sendEmailVerification(_actionCodeSettings);
-    } catch (e) {
-      debugPrint('Email verification error: $e');
-    }
+      // Send email verification immediately after sign up
+      await credential.user!.sendEmailVerification();
+    } catch (_) {}
 
     return credential;
   }
 
-  /// Sends password reset email link with ActionCodeSettings
   Future<void> sendPasswordResetEmail(String email) async {
-    await _firebaseAuth.sendPasswordResetEmail(
-      email: email.trim(),
-      actionCodeSettings: _actionCodeSettings,
-    );
+    await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
   }
 
-  /// Resends email verification link to logged-in user
-  Future<void> sendEmailVerification() async {
-    final user = currentUser;
-    if (user != null) {
-      await user.sendEmailVerification(_actionCodeSettings);
+  /// Resend verification email to the current signed-in user
+  Future<void> resendVerificationEmail() async {
+    final user = _firebaseAuth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
     }
   }
 
-  /// Requests email change verification to new email
-  Future<void> verifyBeforeUpdateEmail(String newEmail) async {
-    final user = currentUser;
-    if (user != null) {
-      await user.verifyBeforeUpdateEmail(newEmail.trim(), _actionCodeSettings);
-    }
-  }
+  bool get isEmailVerified => _firebaseAuth.currentUser?.emailVerified ?? false;
 
   Future<UserCredential?> signInWithGoogle() async {
     if (kIsWeb) {
@@ -170,6 +150,7 @@ class AuthRepository {
       await user.linkWithCredential(credential);
     }
 
+    // Refresh UserProfile document with new avatar/email metadata
     await _firestore
         .collection(AppConstants.collectionUsers)
         .doc(user.uid)
