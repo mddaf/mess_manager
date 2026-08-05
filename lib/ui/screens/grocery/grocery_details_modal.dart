@@ -209,6 +209,40 @@ class GroceryDetailsModal extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // Payment Funding Source Details Card
+          Card(
+            elevation: 1,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_rounded, color: Colors.blue),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Funding Source',
+                            style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        Text(
+                          entry.paymentSource == 'mess_fund'
+                              ? '🏛️ Paid from Mess Fund (Deducted from Mess Fund)'
+                              : entry.paymentSource == 'member_pocket'
+                                  ? '💳 Paid from ${entry.purchaserName}\'s Pocket (Credited ৳${entry.amount.toStringAsFixed(0)} to Deposit balance)'
+                                  : '⚖️ Split Payment (Mess: ৳${entry.amountFromMess.toStringAsFixed(0)} | Deposit: ৳${entry.amountFromMember.toStringAsFixed(0)})',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
 
           // Itemized Bill Breakdown Table

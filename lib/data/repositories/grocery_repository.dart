@@ -55,13 +55,34 @@ class GroceryRepository {
     required String messId,
     required GroceryEntry entry,
   }) async {
-    final docRef = _firestore
-        .collection(AppConstants.collectionMesses)
-        .doc(messId)
-        .collection(AppConstants.collectionGroceryEntries)
-        .doc(entry.id);
+    final messRef = _firestore.collection(AppConstants.collectionMesses).doc(messId);
+    final docRef = messRef.collection(AppConstants.collectionGroceryEntries).doc(entry.id);
 
-    await docRef.set(GroceryEntry.toFirestore(entry, null));
+    final batch = _firestore.batch();
+    batch.set(docRef, GroceryEntry.toFirestore(entry, null));
+
+    // If approved directly by Manager & member paid out of pocket, credit deposit
+    if (entry.status == 'approved' && entry.amountFromMember > 0) {
+      final depId = 'dep_groc_${entry.id}';
+      final depRef = messRef.collection(AppConstants.collectionDeposits).doc(depId);
+      final depositJson = {
+        'id': depId,
+        'memberId': entry.purchasedBy,
+        'memberName': entry.purchaserName,
+        'amount': entry.amountFromMember,
+        'date': entry.date,
+        'note': 'Grocery Reimbursement: ${entry.description}',
+        'status': 'approved',
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+      batch.set(depRef, depositJson);
+      batch.update(
+        messRef.collection(AppConstants.collectionMembers).doc(entry.purchasedBy),
+        {'totalDeposit': FieldValue.increment(entry.amountFromMember)},
+      );
+    }
+
+    await batch.commit();
   }
 
   Future<void> updateGroceryStatus({
@@ -69,12 +90,42 @@ class GroceryRepository {
     required String entryId,
     required String status,
   }) async {
-    await _firestore
-        .collection(AppConstants.collectionMesses)
-        .doc(messId)
-        .collection(AppConstants.collectionGroceryEntries)
-        .doc(entryId)
-        .update({'status': status});
+    final messRef = _firestore.collection(AppConstants.collectionMesses).doc(messId);
+    final entryRef = messRef.collection(AppConstants.collectionGroceryEntries).doc(entryId);
+
+    if (status == 'approved') {
+      final entrySnap = await entryRef.get();
+      if (entrySnap.exists) {
+        final entry = GroceryEntry.fromFirestore(entrySnap, null);
+        final batch = _firestore.batch();
+        batch.update(entryRef, {'status': 'approved'});
+
+        if (entry.amountFromMember > 0) {
+          final depId = 'dep_groc_${entry.id}';
+          final depRef = messRef.collection(AppConstants.collectionDeposits).doc(depId);
+          final depositJson = {
+            'id': depId,
+            'memberId': entry.purchasedBy,
+            'memberName': entry.purchaserName,
+            'amount': entry.amountFromMember,
+            'date': entry.date,
+            'note': 'Grocery Reimbursement: ${entry.description}',
+            'status': 'approved',
+            'createdAt': FieldValue.serverTimestamp(),
+          };
+          batch.set(depRef, depositJson);
+          batch.update(
+            messRef.collection(AppConstants.collectionMembers).doc(entry.purchasedBy),
+            {'totalDeposit': FieldValue.increment(entry.amountFromMember)},
+          );
+        }
+
+        await batch.commit();
+        return;
+      }
+    }
+
+    await entryRef.update({'status': status});
   }
 
   Future<void> updateGroceryEntry({

@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -15,6 +13,7 @@ import '../../../blocs/grocery/grocery_state.dart';
 import '../../../data/services/receipt_parser.dart';
 import '../../../models/grocery_entry.dart';
 import '../../../models/grocery_item.dart';
+import '../../../models/member.dart';
 
 class AddGroceryScreen extends StatefulWidget {
   final String messId;
@@ -34,17 +33,20 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
+  final _amountFromMessController = TextEditingController();
+  final _amountFromMemberController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
+
+  String _paymentSource = 'mess_fund'; // mess_fund, member_pocket, split
+  String? _selectedPurchaserId;
+  String? _selectedPurchaserName;
 
   String? _imagePath;
   double? _ocrExtractedAmount;
-  OcrResult? _lastOcrResult;
   final ImagePicker _picker = ImagePicker();
 
-  // Multi-item breakdown items
   final List<Map<String, TextEditingController>> _itemControllers = [];
 
-  // Preset Category Chips
   final List<Map<String, String>> _categories = [
     {'label': '🍚 Rice & Grains', 'text': 'Rice & Grains'},
     {'label': '🛢️ Oil & Spices', 'text': 'Oil & Spices'},
@@ -63,6 +65,11 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       _descriptionController.text = e.description;
       _amountController.text = e.amount.toStringAsFixed(2);
       _ocrExtractedAmount = e.ocrExtractedAmount;
+      _paymentSource = e.paymentSource;
+      _amountFromMessController.text = e.amountFromMess > 0 ? e.amountFromMess.toStringAsFixed(0) : '';
+      _amountFromMemberController.text = e.amountFromMember > 0 ? e.amountFromMember.toStringAsFixed(0) : '';
+      _selectedPurchaserId = e.purchasedBy;
+      _selectedPurchaserName = e.purchaserName;
       if (e.date.isNotEmpty) {
         try {
           _selectedDate = DateTime.parse(e.date);
@@ -81,6 +88,8 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   void dispose() {
     _descriptionController.dispose();
     _amountController.dispose();
+    _amountFromMessController.dispose();
+    _amountFromMemberController.dispose();
     for (final item in _itemControllers) {
       item['name']?.dispose();
       item['price']?.dispose();
@@ -159,7 +168,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Image capture failed: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed to pick image: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -175,50 +184,27 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Scan Receipt / Paper Bazar Slip',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
             const Text(
-              'Detects handwritten paper slips and printed receipts in Bangla & English.',
-              style: TextStyle(color: Colors.grey, fontSize: 13),
+              'Attach / Scan Receipt Photo',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _pickAndScanReceipt(ImageSource.camera);
-                    },
-                    icon: const Icon(Icons.camera_alt_rounded),
-                    label: const Text('Camera'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _pickAndScanReceipt(ImageSource.gallery);
-                    },
-                    icon: const Icon(Icons.photo_library_rounded),
-                    label: const Text('Gallery'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const CircleAvatar(child: Icon(Icons.camera_alt_rounded)),
+              title: const Text('Take Photo with Camera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndScanReceipt(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const CircleAvatar(child: Icon(Icons.photo_library_rounded)),
+              title: const Text('Choose from Gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndScanReceipt(ImageSource.gallery);
+              },
             ),
           ],
         ),
@@ -233,110 +219,67 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        builder: (ctx, scrollController) => ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.all(24),
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
             Row(
               children: [
-                const Icon(Icons.document_scanner_rounded, color: Colors.deepOrange, size: 28),
-                const SizedBox(width: 12),
-                Text(
-                  'Scan Results',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                Chip(
-                  avatar: Icon(
-                    ocr.extractedTotal != null ? Icons.check_circle_rounded : Icons.help_outline_rounded,
-                    size: 16,
-                    color: ocr.extractedTotal != null ? Colors.green : Colors.orange,
+                const Icon(Icons.psychology_rounded, color: Colors.green, size: 28),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('OCR Receipt Recognized',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        ocr.extractedTotal != null
+                            ? '🎯 Total Detected: ৳${ocr.extractedTotal!.toStringAsFixed(2)}'
+                            : 'Review detected candidate numbers below',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  label: Text(
-                    ocr.extractedTotal != null
-                        ? 'Detected: ৳${ocr.extractedTotal!.toStringAsFixed(0)}'
-                        : 'No clear total',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                  backgroundColor: ocr.extractedTotal != null ? Colors.green.shade50 : Colors.orange.shade50,
                 ),
               ],
             ),
             const SizedBox(height: 16),
 
-            // Candidate Amounts Found (Pills)
-            if (ocr.candidateAmounts.isNotEmpty) ...[
-              const Text('Tap detected amount to set as Total Amount:',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: ocr.candidateAmounts.map((amt) {
-                  final isSelected = _amountController.text == amt.toStringAsFixed(2);
-                  return ActionChip(
-                    avatar: Icon(
-                      isSelected ? Icons.check_rounded : Icons.monetization_on_outlined,
-                      size: 16,
-                      color: isSelected ? Colors.white : Colors.deepOrange,
-                    ),
-                    label: Text(
-                      '৳${amt.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isSelected ? Colors.white : Colors.deepOrange.shade900,
-                      ),
-                    ),
-                    backgroundColor: isSelected ? Colors.deepOrange : Colors.deepOrange.shade50,
-                    onPressed: () {
-                      setState(() {
-                        _amountController.text = amt.toStringAsFixed(2);
-                        _ocrExtractedAmount = amt;
-                      });
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Amount set to ৳${amt.toStringAsFixed(2)}')),
-                      );
-                    },
-                  );
-                }).toList(),
+            if (ocr.extractedTotal != null) ...[
+              Text(
+                'Detected Amount: ৳${ocr.extractedTotal!.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
               ),
               const SizedBox(height: 16),
             ],
 
-            // Itemized Items Detected
             if (ocr.parsedItems.isNotEmpty) ...[
               const Text('Detected Items (Tap + to add to breakdown):',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Card(
-                child: Column(
+              Container(
+                constraints: const BoxConstraints(maxHeight: 180),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: ListView(
+                  shrinkWrap: true,
                   children: ocr.parsedItems.map((item) {
                     return ListTile(
-                      title: Text(item.name, style: const TextStyle(fontSize: 14)),
+                      dense: true,
+                      title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text('৳${item.price.toStringAsFixed(0)}',
-                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                           IconButton(
-                            icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.green),
+                            icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.blue),
                             onPressed: () {
                               _addBreakdownItem(
                                 name: item.name,
@@ -355,27 +298,6 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
               ),
               const SizedBox(height: 16),
             ],
-
-            // Raw OCR Text Accordion
-            ExpansionTile(
-              title: const Text('Raw Detected Text (Handwritten / Printed)', style: TextStyle(fontSize: 13)),
-              leading: const Icon(Icons.text_snippet_outlined),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SelectableText(
-                    ocr.rawText.isNotEmpty ? ocr.rawText : 'No text recognized',
-                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
 
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
@@ -404,7 +326,44 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      final amount = double.parse(_amountController.text);
+      final amount = double.parse(_amountController.text.trim());
+      if (amount <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ Total Amount must be a positive number (> 0)'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      double amtMess = 0.0;
+      double amtMember = 0.0;
+
+      if (_paymentSource == 'mess_fund') {
+        amtMess = amount;
+        amtMember = 0.0;
+      } else if (_paymentSource == 'member_pocket') {
+        amtMess = 0.0;
+        amtMember = amount;
+      } else {
+        amtMess = double.tryParse(_amountFromMessController.text.trim()) ?? 0.0;
+        amtMember = double.tryParse(_amountFromMemberController.text.trim()) ?? 0.0;
+
+        if ((amtMess + amtMember - amount).abs() > 0.01) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '⚠️ Split amounts (Mess: ৳$amtMess + Member: ৳$amtMember = ৳${amtMess + amtMember}) '
+                'must equal Total Amount (৳$amount)',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
 
       final authState = context.read<AuthBloc>().state;
@@ -421,6 +380,9 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
         isManager = (messState.mess.currentManagerId == uid);
       }
 
+      final targetUid = (isManager && _selectedPurchaserId != null) ? _selectedPurchaserId! : uid;
+      final targetName = (isManager && _selectedPurchaserName != null) ? _selectedPurchaserName! : name;
+
       final status = isManager ? 'approved' : 'pending';
 
       final List<GroceryItem> parsedItems = [];
@@ -434,10 +396,14 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       }
 
       if (widget.existingEntry != null) {
-        // EDIT MODE: Members can edit, but requires manager approval
         final updatedEntry = widget.existingEntry!.copyWith(
+          purchasedBy: targetUid,
+          purchaserName: targetName,
           description: _descriptionController.text.trim(),
           amount: amount,
+          paymentSource: _paymentSource,
+          amountFromMess: amtMess,
+          amountFromMember: amtMember,
           ocrExtractedAmount: _ocrExtractedAmount,
           date: dateStr,
           items: parsedItems,
@@ -463,13 +429,15 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
           ),
         );
       } else {
-        // ADD MODE
         final entry = GroceryEntry(
           id: 'groc_${DateTime.now().millisecondsSinceEpoch}',
-          purchasedBy: uid,
-          purchaserName: name,
+          purchasedBy: targetUid,
+          purchaserName: targetName,
           description: _descriptionController.text.trim(),
           amount: amount,
+          paymentSource: _paymentSource,
+          amountFromMess: amtMess,
+          amountFromMember: amtMember,
           ocrExtractedAmount: _ocrExtractedAmount,
           date: dateStr,
           items: parsedItems,
@@ -489,8 +457,8 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
           SnackBar(
             content: Text(
               isManager
-                  ? 'Grocery entry saved!'
-                  : 'Grocery entry added! Waiting for Manager approval.',
+                  ? 'Grocery entry saved & approved!'
+                  : 'Grocery entry saved! Pending Manager approval (balances will update upon approval).',
             ),
             backgroundColor: isManager ? Colors.green : Colors.orange,
           ),
@@ -507,6 +475,23 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     final theme = Theme.of(context);
     final isEditMode = widget.existingEntry != null;
 
+    final authState = context.watch<AuthBloc>().state;
+    final currentUserId = authState is Authenticated ? authState.user.uid : '';
+
+    final messState = context.watch<MessBloc>().state;
+    List<Member> members = [];
+    bool isManager = false;
+    if (messState is MessLoaded) {
+      members = messState.members.where((m) => m.status == 'approved').toList();
+      isManager = (messState.mess.currentManagerId == currentUserId);
+    }
+
+    if (_selectedPurchaserId == null && members.isNotEmpty) {
+      final cur = members.firstWhere((m) => m.userId == currentUserId, orElse: () => members.first);
+      _selectedPurchaserId = cur.userId;
+      _selectedPurchaserName = cur.name;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditMode ? 'Edit Grocery Entry' : l10n.addGrocery),
@@ -522,9 +507,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
         listener: (context, state) {
           if (state is GroceryLoaded && state.ocrResult != null) {
             final ocr = state.ocrResult!;
-            _lastOcrResult = ocr;
 
-            // Auto-fill amount if empty or user tapped optional receipt upload
             if (ocr.extractedTotal != null) {
               setState(() {
                 _ocrExtractedAmount = ocr.extractedTotal;
@@ -534,14 +517,12 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
               });
             }
 
-            // Auto-fill description if empty and items detected
             if (_descriptionController.text.trim().isEmpty && ocr.extractedItems.isNotEmpty) {
               setState(() {
                 _descriptionController.text = ocr.extractedItems.join(', ');
               });
             }
 
-            // Auto-fill item breakdown if items detected and breakdown is empty
             if (ocr.parsedItems.isNotEmpty && _itemControllers.isEmpty) {
               for (final item in ocr.parsedItems) {
                 _addBreakdownItem(
@@ -561,6 +542,40 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // ── Manager Target Member Selector ────────────────────
+                if (isManager && members.isNotEmpty) ...[
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedPurchaserId,
+                        decoration: const InputDecoration(
+                          labelText: 'Purchased By (Select Target Member)',
+                          prefixIcon: Icon(Icons.person_rounded),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: members.map((m) {
+                          return DropdownMenuItem(
+                            value: m.userId,
+                            child: Text('${m.name} (${m.email})'),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _selectedPurchaserId = val;
+                              _selectedPurchaserName = members.firstWhere((m) => m.userId == val).name;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // ── Scanner Banner Card ────────────────────────────────
                 Card(
                   elevation: 2,
@@ -613,7 +628,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // ── Amount & Date Section ──────────────────────────────
+                // ── Amount & Date Section (Positive Validation) ──────
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -634,7 +649,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                                 decoration: InputDecoration(
-                                  labelText: l10n.amount,
+                                  labelText: 'Total Amount (৳)',
                                   prefixIcon: const Padding(
                                     padding: EdgeInsets.all(12.0),
                                     child: Text('৳',
@@ -643,8 +658,11 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
                                 validator: (v) {
-                                  if (v == null || v.trim().isEmpty) return l10n.amount;
-                                  if (double.tryParse(v) == null) return 'Enter valid number';
+                                  if (v == null || v.trim().isEmpty) return 'Enter total amount';
+                                  final numVal = double.tryParse(v.trim());
+                                  if (numVal == null || numVal <= 0) {
+                                    return 'Must be a positive number (> 0)';
+                                  }
                                   return null;
                                 },
                               ),
@@ -676,31 +694,13 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                             ),
                           ],
                         ),
-                        if (_ocrExtractedAmount != null) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(Icons.check_circle_rounded, color: Colors.green, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                'OCR Detected: ৳${_ocrExtractedAmount!.toStringAsFixed(2)}',
-                                style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
-                              if (_lastOcrResult != null)
-                                TextButton(
-                                  onPressed: () => _showOcrReviewDialog(_lastOcrResult!),
-                                  child: const Text('Review OCR', style: TextStyle(fontSize: 12)),
-                                ),
-                            ],
-                          ),
-                        ],
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // ── Description & Category Chips ───────────────────────
+                // ── Required Payment Funding Source Selector ─────────
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -709,54 +709,139 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Item Description',
+                        Text('Payment Funding Source (Required)',
                             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _descriptionController,
-                          maxLines: 2,
-                          decoration: InputDecoration(
-                            labelText: l10n.description,
-                            hintText: 'e.g. Rice 5kg, Soybean Oil 2L, Eggs 1 Dozen',
-                            prefixIcon: const Icon(Icons.shopping_bag_outlined),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? l10n.description : null,
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Select how this grocery was paid. Money will be deducted from Mess Fund or deposited to Purchaser.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                         const SizedBox(height: 12),
 
-                        const Text('Quick Preset Categories:', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                        const SizedBox(height: 6),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: _categories.map((cat) {
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: ChoiceChip(
-                                  label: Text(cat['label']!),
-                                  selected: false,
-                                  onSelected: (_) {
-                                    final current = _descriptionController.text.trim();
-                                    final catText = cat['text']!;
-                                    if (current.isEmpty) {
-                                      _descriptionController.text = catText;
-                                    } else if (!current.contains(catText)) {
-                                      _descriptionController.text = '$current, $catText';
-                                    }
+                        RadioListTile<String>(
+                          title: const Text('🏛️ Paid from Mess Fund / Mess Money'),
+                          subtitle: const Text('Deducted from Mess Fund balance'),
+                          value: 'mess_fund',
+                          groupValue: _paymentSource,
+                          onChanged: (val) {
+                            if (val != null) setState(() => _paymentSource = val);
+                          },
+                        ),
+                        RadioListTile<String>(
+                          title: const Text('💳 Paid from Purchaser\'s Own Pocket'),
+                          subtitle: const Text('Credited as Deposit to Purchaser\'s balance'),
+                          value: 'member_pocket',
+                          groupValue: _paymentSource,
+                          onChanged: (val) {
+                            if (val != null) setState(() => _paymentSource = val);
+                          },
+                        ),
+                        RadioListTile<String>(
+                          title: const Text('⚖️ Split Payment (Partial Mess Fund + Partial Pocket)'),
+                          subtitle: const Text('Specify exact split amounts below'),
+                          value: 'split',
+                          groupValue: _paymentSource,
+                          onChanged: (val) {
+                            if (val != null) setState(() => _paymentSource = val);
+                          },
+                        ),
+
+                        if (_paymentSource == 'split') ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _amountFromMessController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'From Mess Fund (৳)',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  validator: (v) {
+                                    if (_paymentSource != 'split') return null;
+                                    if (v == null || v.trim().isEmpty) return 'Required';
+                                    final numVal = double.tryParse(v.trim());
+                                    if (numVal == null || numVal < 0) return 'Must be >= 0';
+                                    return null;
                                   },
                                 ),
-                              );
-                            }).toList(),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _amountFromMemberController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'From Member Pocket (৳)',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  validator: (v) {
+                                    if (_paymentSource != 'split') return null;
+                                    if (v == null || v.trim().isEmpty) return 'Required';
+                                    final numVal = double.tryParse(v.trim());
+                                    if (numVal == null || numVal < 0) return 'Must be >= 0';
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // ── Description & Category Presets ────────────────────
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Grocery Description / Items',
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _descriptionController,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. Rice 5kg, Oil 2L, Vegetables',
+                            prefixIcon: const Icon(Icons.description_rounded),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          validator: (v) =>
+                              (v == null || v.trim().isEmpty) ? 'Enter grocery description' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('Preset Categories:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: _categories.map((cat) {
+                            return ActionChip(
+                              label: Text(cat['label']!),
+                              onPressed: () {
+                                if (_descriptionController.text.isEmpty) {
+                                  _descriptionController.text = cat['text']!;
+                                } else {
+                                  _descriptionController.text += ', ${cat['text']}';
+                                }
+                              },
+                            );
+                          }).toList(),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // ── Multi-Item Breakdown Section ───────────────────────
+                // ── Multi-Item Breakdown Calculator ───────────────────
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -766,10 +851,10 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text('Itemized Breakdown (Optional)',
                                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                            const Spacer(),
                             TextButton.icon(
                               onPressed: () => _addBreakdownItem(),
                               icon: const Icon(Icons.add_rounded, size: 18),
@@ -777,32 +862,31 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 8),
+
                         if (_itemControllers.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(
-                              'Tap "+ Add Item" or scan a receipt to break down individual item prices.',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
-                            ),
+                          const Text(
+                            'No itemized breakdown added. Tap "+ Add Item" or scan a receipt.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
                           )
                         else
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _itemControllers.length,
-                            itemBuilder: (context, index) {
+                            itemBuilder: (ctx, idx) {
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 8.0),
                                 child: Row(
                                   children: [
                                     Expanded(
                                       flex: 3,
-                                      child: TextField(
-                                        controller: _itemControllers[index]['name'],
-                                        decoration: InputDecoration(
-                                          hintText: 'Item name (e.g. Rice)',
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      child: TextFormField(
+                                        controller: _itemControllers[idx]['name'],
+                                        decoration: const InputDecoration(
+                                          labelText: 'Item Name',
+                                          isDense: true,
+                                          border: OutlineInputBorder(),
                                         ),
                                         onChanged: (_) => _calculateBreakdownTotal(),
                                       ),
@@ -810,21 +894,27 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       flex: 2,
-                                      child: TextField(
-                                        controller: _itemControllers[index]['price'],
+                                      child: TextFormField(
+                                        controller: _itemControllers[idx]['price'],
                                         keyboardType: TextInputType.number,
-                                        decoration: InputDecoration(
-                                          hintText: 'Price',
-                                          prefixText: '৳ ',
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                        decoration: const InputDecoration(
+                                          labelText: 'Price (৳)',
+                                          isDense: true,
+                                          border: OutlineInputBorder(),
                                         ),
+                                        validator: (v) {
+                                          if (v != null && v.isNotEmpty) {
+                                            final p = double.tryParse(v);
+                                            if (p == null || p <= 0) return 'Must be > 0';
+                                          }
+                                          return null;
+                                        },
                                         onChanged: (_) => _calculateBreakdownTotal(),
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
-                                      onPressed: () => _removeBreakdownItem(index),
+                                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                                      onPressed: () => _removeBreakdownItem(idx),
                                     ),
                                   ],
                                 ),
@@ -835,58 +925,20 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-                // ── Receipt Photo Attachment Preview ──────────────────
-                if (_imagePath != null) ...[
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: kIsWeb
-                                ? Image.network(_imagePath!, width: 60, height: 60, fit: BoxFit.cover)
-                                : Image.file(File(_imagePath!), width: 60, height: 60, fit: BoxFit.cover),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Receipt Photo Attached', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                Text('Will be saved with entry', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded, color: Colors.red),
-                            onPressed: () => setState(() => _imagePath = null),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-
-                // ── Save Entry Button ─────────────────────────────────
-                ElevatedButton.icon(
+                // Submit Button
+                ElevatedButton(
                   onPressed: _submit,
-                  icon: const Icon(Icons.save_rounded),
-                  label: Text(
-                    l10n.save,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 4,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: Text(
+                    isEditMode
+                        ? 'Save Grocery Edits'
+                        : (isManager ? 'Save & Approve Grocery' : 'Submit Grocery (Pending Approval)'),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -898,4 +950,3 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     );
   }
 }
-
