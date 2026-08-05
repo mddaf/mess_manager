@@ -75,6 +75,106 @@ class UserProfileScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _showChangeEmailDialog(BuildContext context) async {
+    final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final authRepo = context.read<AuthRepository>();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Change Email Address'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                    'A verification link will be sent to your new email address. Check Spam/Junk if not found in Inbox.'),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'New Email Address',
+                    prefixIcon: Icon(Icons.mark_email_unread_outlined),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Enter new email';
+                    if (!v.contains('@') || !v.contains('.')) return 'Enter valid email';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) Navigator.pop(ctx, true);
+              },
+              child: const Text('Send Verification Link'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      try {
+        await authRepo.verifyBeforeUpdateEmail(emailController.text.trim());
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Verification email sent to new address! Please check Inbox & Spam/Junk folders.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _sendEmailVerification(BuildContext context) async {
+    final authRepo = context.read<AuthRepository>();
+    try {
+      await authRepo.sendEmailVerification();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Verification email link sent! Check your Inbox & Spam/Junk folder.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending email verification: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _linkGoogleAccount(BuildContext context) async {
     final authRepo = context.read<AuthRepository>();
     try {
@@ -86,7 +186,6 @@ class UserProfileScreen extends StatelessWidget {
             backgroundColor: Colors.green,
           ),
         );
-        // Refresh Auth state
         context.read<AuthBloc>().add(AuthCheckRequested());
       }
     } catch (e) {
@@ -104,6 +203,8 @@ class UserProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final firebaseUser = context.read<AuthRepository>().currentUser;
+    final isEmailVerified = firebaseUser?.emailVerified ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -173,7 +274,33 @@ class UserProfileScreen extends StatelessWidget {
                     style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
+
+                  // Spam warning card
+                  Card(
+                    color: Colors.amber.shade100,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.mark_email_unread_rounded, color: Colors.orange),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '💡 Note: Automated emails come from noreply@meal-manager-844f5.firebaseapp.com. Check your Spam, Junk, or Promotions folder if not in Inbox!',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.brown.shade900,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
                   // Profile details card
                   Card(
                     child: Column(
@@ -186,8 +313,23 @@ class UserProfileScreen extends StatelessWidget {
                         const Divider(height: 1),
                         ListTile(
                           leading: const Icon(Icons.email_outlined),
-                          title: const Text('Email'),
-                          subtitle: Text(user.email),
+                          title: const Text('Email Address'),
+                          subtitle: Text('${user.email} ${isEmailVerified ? "✅ (Verified)" : "⚠️ (Unverified)"}'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (!isEmailVerified)
+                                TextButton(
+                                  onPressed: () => _sendEmailVerification(context),
+                                  child: const Text('Verify Email'),
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.edit_note_rounded),
+                                tooltip: 'Change Email Address',
+                                onPressed: () => _showChangeEmailDialog(context),
+                              ),
+                            ],
+                          ),
                         ),
                         const Divider(height: 1),
                         ListTile(
@@ -221,6 +363,7 @@ class UserProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
+
                   // Sign out button
                   OutlinedButton.icon(
                     onPressed: () {

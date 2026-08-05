@@ -91,13 +91,32 @@ class AuthRepository {
           .set(UserProfile.toFirestore(userProfile, null));
 
       await credential.user!.updateDisplayName(name.trim());
+      // Trigger Email Verification Link
+      await credential.user!.sendEmailVerification();
     } catch (_) {}
 
     return credential;
   }
 
+  /// Sends password reset email link
   Future<void> sendPasswordResetEmail(String email) async {
     await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
+  }
+
+  /// Resends email verification link to logged-in user
+  Future<void> sendEmailVerification() async {
+    final user = currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
+  /// Requests email change verification to new email
+  Future<void> verifyBeforeUpdateEmail(String newEmail) async {
+    final user = currentUser;
+    if (user != null) {
+      await user.verifyBeforeUpdateEmail(newEmail.trim());
+    }
   }
 
   Future<UserCredential?> signInWithGoogle() async {
@@ -137,7 +156,6 @@ class AuthRepository {
       await user.linkWithCredential(credential);
     }
 
-    // Refresh UserProfile document with new avatar/email metadata
     await _firestore
         .collection(AppConstants.collectionUsers)
         .doc(user.uid)
