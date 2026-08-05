@@ -49,8 +49,6 @@ class ReceiptParser {
       'subtotal',
       'sub total',
       'cash',
-      'bazar',
-      'bazaar',
       'মোট',
       'টাকা',
       'tk',
@@ -61,7 +59,14 @@ class ReceiptParser {
         r'(?:৳|\$|Tk|TK|Tk\.|TK\.|BDT)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)',
         caseSensitive: false);
 
-    // 1. Check for High-Priority Keyword on same line
+    bool isDateLine(String line) {
+      final lower = line.toLowerCase();
+      if (lower.contains('date')) return true;
+      return RegExp(r'\d{4}[-/]\d{1,2}[-/]\d{1,2}').hasMatch(line) ||
+          RegExp(r'\d{1,2}[-/]\d{1,2}[-/]\d{2,4}').hasMatch(line);
+    }
+
+    // 1. Check for High-Priority Keyword on same line or adjacent lines
     for (int i = 0; i < lines.length; i++) {
       final lineLower = lines[i].toLowerCase();
       if (highPriorityKeywords.any((kw) => lineLower.contains(kw))) {
@@ -69,7 +74,7 @@ class ReceiptParser {
         if (amt != null) return amt;
 
         // Check next line if number was on separate line
-        if (i + 1 < lines.length) {
+        if (i + 1 < lines.length && !isDateLine(lines[i + 1])) {
           final nextAmt = _extractNumberFromLine(lines[i + 1], numberRegex);
           if (nextAmt != null) return nextAmt;
         }
@@ -83,7 +88,7 @@ class ReceiptParser {
         final amt = _extractNumberFromLine(lines[i], numberRegex);
         if (amt != null) return amt;
 
-        if (i + 1 < lines.length) {
+        if (i + 1 < lines.length && !isDateLine(lines[i + 1])) {
           final nextAmt = _extractNumberFromLine(lines[i + 1], numberRegex);
           if (nextAmt != null) return nextAmt;
         }
@@ -95,8 +100,7 @@ class ReceiptParser {
 
     for (final line in lines) {
       // Skip date-like lines (e.g. 2026-08-05, 05/08/2026) and phone numbers (017..., 018...)
-      if (RegExp(r'\d{4}[-/]\d{1,2}[-/]\d{1,2}').hasMatch(line) ||
-          RegExp(r'\d{1,2}[-/]\d{1,2}[-/]\d{2,4}').hasMatch(line) ||
+      if (isDateLine(line) ||
           RegExp(r'^01[3-9]\d{8}$').hasMatch(line.replaceAll(RegExp(r'\s+'), ''))) {
         continue;
       }
@@ -107,7 +111,7 @@ class ReceiptParser {
         if (numStr != null) {
           final val = double.tryParse(numStr);
           if (val != null && val > 0 && val < 500000) {
-            // Avoid year numbers like 2024, 2025, 2026 if standalone
+            // Avoid year numbers like 2020..2030 if standalone integer
             if (val >= 2020 && val <= 2030 && !line.contains('.')) continue;
 
             if (maxPlausibleAmount == null || val > maxPlausibleAmount) {
