@@ -19,7 +19,7 @@ import '../../../models/grocery_entry.dart';
 import '../../../models/meal_entry.dart';
 import '../../../models/member.dart';
 import '../../../models/mess.dart';
-import '../settlement/settlement_screen.dart';
+import '../settlement/archived_months_screen.dart';
 
 class MessDashboardScreen extends StatefulWidget {
   final String messId;
@@ -453,9 +453,8 @@ class _MessDashboardScreenState extends State<MessDashboardScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (ctx) => SettlementScreen(
+                            builder: (ctx) => ArchivedMonthsScreen(
                               messId: widget.messId,
-                              monthStr: currentMonthStr,
                             ),
                           ),
                         );

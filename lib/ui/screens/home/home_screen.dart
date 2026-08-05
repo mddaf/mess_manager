@@ -18,6 +18,7 @@ import '../../widgets/theme_toggle.dart';
 import '../meals/meal_checkin_screen.dart';
 import '../grocery/grocery_list_screen.dart';
 import '../deposits/deposit_screen.dart';
+import '../settlement/settlement_screen.dart';
 import '../mess/mess_profile_screen.dart';
 import '../dashboard/mess_dashboard_screen.dart';
 
@@ -69,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MealCheckinScreen(messId: widget.messId, dateStr: _currentDateStr),
       GroceryListScreen(messId: widget.messId, monthStr: _currentMonthStr),
       DepositScreen(messId: widget.messId, monthStr: _currentMonthStr),
+      SettlementScreen(messId: widget.messId, monthStr: _currentMonthStr),
       MessProfileScreen(messId: widget.messId),
     ];
 
@@ -121,6 +123,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.account_balance_wallet_outlined),
             selectedIcon: Icon(Icons.account_balance_wallet),
             label: 'Deposits',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Settlement',
           ),
           NavigationDestination(
             icon: Icon(Icons.home_work_outlined),

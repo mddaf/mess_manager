@@ -8,6 +8,7 @@ import '../../../core/extensions.dart';
 import '../../../data/repositories/settlement_repository.dart';
 import '../../../models/settlement.dart';
 import '../../widgets/spending_chart.dart';
+import 'archived_months_screen.dart';
 
 class SettlementScreen extends StatelessWidget {
   final String messId;
@@ -134,6 +135,28 @@ class SettlementScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Current Active Settlement',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (ctx) => ArchivedMonthsScreen(messId: messId),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.archive_rounded, size: 16),
+                      label: const Text('Archived Months 📂'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 Card(
                   color: theme.colorScheme.primaryContainer,
                   child: Padding(
@@ -141,7 +164,7 @@ class SettlementScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         Text(
-                          '${l10n.settlement}: $monthStr',
+                          '${l10n.settlement}: $monthStr (Current Month)',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

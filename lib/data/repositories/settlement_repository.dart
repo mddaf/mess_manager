@@ -173,4 +173,34 @@ class SettlementRepository {
         .doc(month)
         .update({'status': 'settled'});
   }
+
+  /// Stream all archived settlements for a mess
+  Stream<List<Settlement>> watchAllSettlements(String messId) {
+    return _firestore
+        .collection(AppConstants.collectionMesses)
+        .doc(messId)
+        .collection(AppConstants.collectionSettlements)
+        .orderBy('month', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Settlement.fromFirestore(doc, null)).toList());
+  }
+
+  /// Delete/Re-open an archived month: Deletes settlement doc and reverts mess activeMonth
+  Future<void> deleteArchivedMonth({
+    required String messId,
+    required String month,
+  }) async {
+    final messRef = _firestore.collection(AppConstants.collectionMesses).doc(messId);
+    final batch = _firestore.batch();
+
+    // 1. Delete settlement document
+    final settlementDoc = messRef.collection(AppConstants.collectionSettlements).doc(month);
+    batch.delete(settlementDoc);
+
+    // 2. Revert activeMonth on mess doc to this month so it becomes active again
+    batch.update(messRef, {'activeMonth': month});
+
+    await batch.commit();
+  }
 }
