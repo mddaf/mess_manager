@@ -30,7 +30,7 @@ Map<String, dynamic> _$SettlementToJson(_Settlement instance) =>
       'totalGroceryCost': instance.totalGroceryCost,
       'totalMeals': instance.totalMeals,
       'mealRate': instance.mealRate,
-      'memberBalances': instance.memberBalances,
+      'memberBalances': instance.memberBalances.map((e) => e.toJson()).toList(),
       'status': instance.status,
       'calculatedAt': instance.calculatedAt?.toIso8601String(),
     };

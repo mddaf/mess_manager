@@ -6,6 +6,7 @@ part 'settlement.freezed.dart';
 part 'settlement.g.dart';
 
 @freezed
+@JsonSerializable(explicitToJson: true)
 abstract class Settlement with _$Settlement {
   const factory Settlement({
     required String id,
@@ -40,6 +41,8 @@ abstract class Settlement with _$Settlement {
     SetOptions? options,
   ) {
     final json = settlement.toJson();
+    json['memberBalances'] =
+        settlement.memberBalances.map((b) => b.toJson()).toList();
     if (settlement.calculatedAt != null) {
       json['calculatedAt'] = Timestamp.fromDate(settlement.calculatedAt!);
     }
