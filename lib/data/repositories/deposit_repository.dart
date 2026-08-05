@@ -39,14 +39,54 @@ class DepositRepository {
 
     await docRef.set(Deposit.toFirestore(deposit, null));
 
-    // Update totalDeposit in Member subcollection
+    // If initial status is approved (e.g. manager added it), increment totalDeposit
+    if (deposit.status == 'approved') {
+      await _firestore
+          .collection(AppConstants.collectionMesses)
+          .doc(messId)
+          .collection(AppConstants.collectionMembers)
+          .doc(deposit.memberId)
+          .update({
+        'totalDeposit': FieldValue.increment(deposit.amount),
+      });
+    }
+  }
+
+  Future<void> updateDepositStatus({
+    required String messId,
+    required String depositId,
+    required String memberId,
+    required double amount,
+    required String newStatus, // 'approved', 'rejected'
+    required String previousStatus,
+  }) async {
     await _firestore
         .collection(AppConstants.collectionMesses)
         .doc(messId)
-        .collection(AppConstants.collectionMembers)
-        .doc(deposit.memberId)
-        .update({
-      'totalDeposit': FieldValue.increment(deposit.amount),
-    });
+        .collection(AppConstants.collectionDeposits)
+        .doc(depositId)
+        .update({'status': newStatus});
+
+    // Increment member totalDeposit when moving from pending/rejected -> approved
+    if (newStatus == 'approved' && previousStatus != 'approved') {
+      await _firestore
+          .collection(AppConstants.collectionMesses)
+          .doc(messId)
+          .collection(AppConstants.collectionMembers)
+          .doc(memberId)
+          .update({
+        'totalDeposit': FieldValue.increment(amount),
+      });
+    } else if (previousStatus == 'approved' && newStatus != 'approved') {
+      // Revert deposit if previously approved and now rejected
+      await _firestore
+          .collection(AppConstants.collectionMesses)
+          .doc(messId)
+          .collection(AppConstants.collectionMembers)
+          .doc(memberId)
+          .update({
+        'totalDeposit': FieldValue.increment(-amount),
+      });
+    }
   }
 }

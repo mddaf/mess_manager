@@ -48,7 +48,7 @@ class SettlementRepository {
     final start = '$month-01';
     final end = '$month-31';
 
-    // 1. Fetch groceries
+    // 1. Fetch groceries (Only approved entries count)
     final groceriesSnap = await _firestore
         .collection(AppConstants.collectionMesses)
         .doc(messId)
@@ -59,7 +59,11 @@ class SettlementRepository {
 
     double totalGroceryCost = 0.0;
     for (final doc in groceriesSnap.docs) {
-      totalGroceryCost += (doc.data()['amount'] as num).toDouble();
+      final data = doc.data();
+      final status = data['status'] as String? ?? 'approved';
+      if (status == 'approved') {
+        totalGroceryCost += (data['amount'] as num).toDouble();
+      }
     }
 
     // 2. Fetch meals
@@ -88,7 +92,7 @@ class SettlementRepository {
 
     final mealRate = totalMeals > 0 ? (totalGroceryCost / totalMeals) : 0.0;
 
-    // 3. Fetch members & deposits
+    // 3. Fetch members & deposits (Only approved deposits count)
     final membersSnap = await _firestore
         .collection(AppConstants.collectionMesses)
         .doc(messId)
@@ -106,9 +110,12 @@ class SettlementRepository {
     final Map<String, double> memberDeposits = {};
     for (final doc in depositsSnap.docs) {
       final data = doc.data();
-      final mId = data['memberId'] as String;
-      final amt = (data['amount'] as num).toDouble();
-      memberDeposits[mId] = (memberDeposits[mId] ?? 0.0) + amt;
+      final status = data['status'] as String? ?? 'approved';
+      if (status == 'approved') {
+        final mId = data['memberId'] as String;
+        final amt = (data['amount'] as num).toDouble();
+        memberDeposits[mId] = (memberDeposits[mId] ?? 0.0) + amt;
+      }
     }
 
     final List<MemberBalance> balances = [];

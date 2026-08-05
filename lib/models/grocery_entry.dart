@@ -17,6 +17,7 @@ abstract class GroceryEntry with _$GroceryEntry {
     required String date, // YYYY-MM-DD
     String? receiptUrl,
     @Default([]) List<GroceryItem> items,
+    @Default('approved') String status, // approved, pending, rejected
     DateTime? createdAt,
   }) = _GroceryEntry;
 

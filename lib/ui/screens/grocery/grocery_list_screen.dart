@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../blocs/auth/auth_bloc.dart';
+import '../../../blocs/auth/auth_state.dart';
+import '../../../blocs/mess/mess_bloc.dart';
+import '../../../blocs/mess/mess_state.dart';
 import '../../../blocs/grocery/grocery_bloc.dart';
 import '../../../blocs/grocery/grocery_state.dart';
 import '../../../core/extensions.dart';
+import '../../../data/repositories/grocery_repository.dart';
 import '../../../models/grocery_entry.dart';
-import '../../widgets/grocery_item_tile.dart';
 import 'add_grocery_screen.dart';
 
 class GroceryListScreen extends StatelessWidget {
@@ -23,6 +27,18 @@ class GroceryListScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
+    final authState = context.watch<AuthBloc>().state;
+    final currentUserId =
+        authState is Authenticated ? authState.user.uid : '';
+
+    final messState = context.watch<MessBloc>().state;
+    bool isManager = false;
+    if (messState is MessLoaded) {
+      isManager = (messState.mess.currentManagerId == currentUserId);
+    }
+
+    final groceryRepo = context.read<GroceryRepository>();
+
     return BlocBuilder<GroceryBloc, GroceryState>(
       builder: (context, state) {
         if (state is GroceryLoading) {
@@ -30,11 +46,14 @@ class GroceryListScreen extends StatelessWidget {
         }
 
         List<GroceryEntry> entries = [];
-        double total = 0.0;
         if (state is GroceryLoaded) {
           entries = state.entries;
-          total = state.totalGroceryCost;
         }
+
+        // Only approved entries count towards total
+        final approvedTotal = entries
+            .where((e) => e.status == 'approved')
+            .fold<double>(0.0, (sum, e) => sum + e.amount);
 
         return Scaffold(
           body: Column(
@@ -54,7 +73,7 @@ class GroceryListScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      total.toCurrency(),
+                      approvedTotal.toCurrency(),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -78,13 +97,103 @@ class GroceryListScreen extends StatelessWidget {
                         itemCount: entries.length,
                         itemBuilder: (context, index) {
                           final item = entries[index];
-                          return GroceryItemTile(
-                            description: item.description,
-                            amount: item.amount,
-                            purchaserName: item.purchaserName,
-                            date: item.date,
-                            receiptUrl: item.receiptUrl,
-                            ocrExtractedAmount: item.ocrExtractedAmount,
+                          final isPending = (item.status == 'pending');
+                          final isRejected = (item.status == 'rejected');
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isPending
+                                    ? theme.colorScheme.tertiaryContainer
+                                    : isRejected
+                                        ? theme.colorScheme.errorContainer
+                                        : theme.colorScheme.primaryContainer,
+                                child: Icon(
+                                  isPending
+                                      ? Icons.hourglass_top_rounded
+                                      : isRejected
+                                          ? Icons.block_rounded
+                                          : Icons.shopping_bag_outlined,
+                                ),
+                              ),
+                              title: Text(
+                                item.description,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${item.purchaserName} • ${item.date}',
+                                  ),
+                                  if (isPending)
+                                    const Text(
+                                      '⏳ Pending Manager Approval',
+                                      style: TextStyle(
+                                          color: Colors.orange,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold),
+                                    )
+                                  else if (isRejected)
+                                    const Text(
+                                      '❌ Rejected by Manager',
+                                      style: TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    item.amount.toCurrency(),
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: isRejected
+                                          ? Colors.grey
+                                          : theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                  if (isManager && isPending) ...[
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.check_circle_rounded,
+                                        color: Colors.green,
+                                      ),
+                                      tooltip: 'Approve Grocery',
+                                      onPressed: () async {
+                                        await groceryRepo.updateGroceryStatus(
+                                          messId: messId,
+                                          entryId: item.id,
+                                          status: 'approved',
+                                        );
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.cancel_rounded,
+                                        color: Colors.red,
+                                      ),
+                                      tooltip: 'Reject Grocery',
+                                      onPressed: () async {
+                                        await groceryRepo.updateGroceryStatus(
+                                          messId: messId,
+                                          entryId: item.id,
+                                          status: 'rejected',
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                           );
                         },
                       ),

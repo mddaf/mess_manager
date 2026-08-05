@@ -13,6 +13,7 @@ _Deposit _$DepositFromJson(Map<String, dynamic> json) => _Deposit(
   amount: (json['amount'] as num).toDouble(),
   date: json['date'] as String,
   note: json['note'] as String? ?? '',
+  status: json['status'] as String? ?? 'approved',
   createdAt: json['createdAt'] == null
       ? null
       : DateTime.parse(json['createdAt'] as String),
@@ -25,5 +26,6 @@ Map<String, dynamic> _$DepositToJson(_Deposit instance) => <String, dynamic>{
   'amount': instance.amount,
   'date': instance.date,
   'note': instance.note,
+  'status': instance.status,
   'createdAt': instance.createdAt?.toIso8601String(),
 };

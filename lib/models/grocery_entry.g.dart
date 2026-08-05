@@ -21,6 +21,7 @@ _GroceryEntry _$GroceryEntryFromJson(Map<String, dynamic> json) =>
               ?.map((e) => GroceryItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      status: json['status'] as String? ?? 'approved',
       createdAt: json['createdAt'] == null
           ? null
           : DateTime.parse(json['createdAt'] as String),
@@ -37,5 +38,6 @@ Map<String, dynamic> _$GroceryEntryToJson(_GroceryEntry instance) =>
       'date': instance.date,
       'receiptUrl': instance.receiptUrl,
       'items': instance.items,
+      'status': instance.status,
       'createdAt': instance.createdAt?.toIso8601String(),
     };

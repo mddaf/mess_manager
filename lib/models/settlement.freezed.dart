@@ -215,8 +215,8 @@ return $default(_that.id,_that.month,_that.totalGroceryCost,_that.totalMeals,_th
 }
 
 /// @nodoc
+@JsonSerializable()
 
-@JsonSerializable(explicitToJson: true)
 class _Settlement implements Settlement {
   const _Settlement({required this.id, required this.month, required this.totalGroceryCost, required this.totalMeals, required this.mealRate, final  List<MemberBalance> memberBalances = const [], this.status = 'pending', this.calculatedAt}): _memberBalances = memberBalances;
   factory _Settlement.fromJson(Map<String, dynamic> json) => _$SettlementFromJson(json);

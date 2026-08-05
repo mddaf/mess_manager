@@ -6,7 +6,6 @@ part 'settlement.freezed.dart';
 part 'settlement.g.dart';
 
 @freezed
-@JsonSerializable(explicitToJson: true)
 abstract class Settlement with _$Settlement {
   const factory Settlement({
     required String id,

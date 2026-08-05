@@ -64,6 +64,19 @@ class GroceryRepository {
     await docRef.set(GroceryEntry.toFirestore(entry, null));
   }
 
+  Future<void> updateGroceryStatus({
+    required String messId,
+    required String entryId,
+    required String status,
+  }) async {
+    await _firestore
+        .collection(AppConstants.collectionMesses)
+        .doc(messId)
+        .collection(AppConstants.collectionGroceryEntries)
+        .doc(entryId)
+        .update({'status': status});
+  }
+
   Future<void> deleteGroceryEntry({
     required String messId,
     required String entryId,

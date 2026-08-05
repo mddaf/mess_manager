@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../blocs/auth/auth_bloc.dart';
 import '../../../blocs/auth/auth_state.dart';
+import '../../../blocs/mess/mess_bloc.dart';
+import '../../../blocs/mess/mess_state.dart';
 import '../../../blocs/grocery/grocery_bloc.dart';
 import '../../../blocs/grocery/grocery_event.dart';
 import '../../../blocs/grocery/grocery_state.dart';
@@ -59,6 +61,14 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
         name = authState.user.name;
       }
 
+      final messState = context.read<MessBloc>().state;
+      bool isManager = false;
+      if (messState is MessLoaded) {
+        isManager = (messState.mess.currentManagerId == uid);
+      }
+
+      final status = isManager ? 'approved' : 'pending';
+
       final entry = GroceryEntry(
         id: 'groc_${DateTime.now().millisecondsSinceEpoch}',
         purchasedBy: uid,
@@ -67,6 +77,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
         amount: amount,
         ocrExtractedAmount: _ocrExtractedAmount,
         date: dateStr,
+        status: status,
         createdAt: DateTime.now(),
       );
 
@@ -77,6 +88,17 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
               receiptImagePath: _imagePath,
             ),
           );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isManager
+                ? 'Grocery entry saved!'
+                : 'Grocery entry added! Waiting for Manager approval.',
+          ),
+          backgroundColor: isManager ? Colors.green : Colors.orange,
+        ),
+      );
 
       Navigator.pop(context);
     }

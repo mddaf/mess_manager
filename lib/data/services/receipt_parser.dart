@@ -15,54 +15,126 @@ class OcrResult {
 }
 
 class ReceiptParser {
-  /// Extracts total amount from recognized OCR text
+  /// Robustly extracts total amount from recognized OCR text
   static double? parseTotalAmount(String text) {
-    if (text.isEmpty) return null;
+    if (text.trim().isEmpty) return null;
 
     // Convert any Bangla numerals to English numerals first
     final normalizedText = text.toEnglishNumerals();
-    final lines = normalizedText.split('\n');
+    final lines = normalizedText
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
 
-    // Keywords to search for total
-    final totalKeywords = [
-      'total',
+    if (lines.isEmpty) return null;
+
+    // High-priority total keywords
+    final highPriorityKeywords = [
       'grand total',
       'net total',
-      'amount',
-      'মোট',
+      'net amount',
+      'total amount',
+      'bill amount',
+      'payable',
+      'paid amount',
       'সর্বমোট',
-      'টাকা',
-      'subtotal',
-      'cash'
+      'মোট টাকা',
     ];
 
-    double? maxAmount;
+    // Medium-priority total keywords
+    final mediumPriorityKeywords = [
+      'total',
+      'amount',
+      'subtotal',
+      'sub total',
+      'cash',
+      'bazar',
+      'bazaar',
+      'মোট',
+      'টাকা',
+      'tk',
+      'bdt',
+    ];
+
+    final numberRegex = RegExp(
+        r'(?:৳|\$|Tk|TK|Tk\.|TK\.|BDT)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)',
+        caseSensitive: false);
+
+    // 1. Check for High-Priority Keyword on same line
+    for (int i = 0; i < lines.length; i++) {
+      final lineLower = lines[i].toLowerCase();
+      if (highPriorityKeywords.any((kw) => lineLower.contains(kw))) {
+        final amt = _extractNumberFromLine(lines[i], numberRegex);
+        if (amt != null) return amt;
+
+        // Check next line if number was on separate line
+        if (i + 1 < lines.length) {
+          final nextAmt = _extractNumberFromLine(lines[i + 1], numberRegex);
+          if (nextAmt != null) return nextAmt;
+        }
+      }
+    }
+
+    // 2. Check for Medium-Priority Keyword on same line or adjacent lines
+    for (int i = 0; i < lines.length; i++) {
+      final lineLower = lines[i].toLowerCase();
+      if (mediumPriorityKeywords.any((kw) => lineLower.contains(kw))) {
+        final amt = _extractNumberFromLine(lines[i], numberRegex);
+        if (amt != null) return amt;
+
+        if (i + 1 < lines.length) {
+          final nextAmt = _extractNumberFromLine(lines[i + 1], numberRegex);
+          if (nextAmt != null) return nextAmt;
+        }
+      }
+    }
+
+    // 3. Fallback: Find maximum plausible non-date, non-phone number in the text
+    double? maxPlausibleAmount;
 
     for (final line in lines) {
-      final lower = line.toLowerCase();
-      final hasKeyword = totalKeywords.any((kw) => lower.contains(kw));
+      // Skip date-like lines (e.g. 2026-08-05, 05/08/2026) and phone numbers (017..., 018...)
+      if (RegExp(r'\d{4}[-/]\d{1,2}[-/]\d{1,2}').hasMatch(line) ||
+          RegExp(r'\d{1,2}[-/]\d{1,2}[-/]\d{2,4}').hasMatch(line) ||
+          RegExp(r'^01[3-9]\d{8}$').hasMatch(line.replaceAll(RegExp(r'\s+'), ''))) {
+        continue;
+      }
 
-      // Regex matching amounts like 1,250.00 or 1250 or 450.50
-      final matches = RegExp(r'(?:৳|\$|Tk|TK|BDT)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)')
-          .allMatches(line);
-
+      final matches = numberRegex.allMatches(line);
       for (final match in matches) {
         final numStr = match.group(1)?.replaceAll(',', '');
         if (numStr != null) {
           final val = double.tryParse(numStr);
-          if (val != null && val > 0 && val < 500000) { // Reasonable upper bound
-            if (hasKeyword) {
-              return val; // High priority match next to a total keyword
-            }
-            if (maxAmount == null || val > maxAmount) {
-              maxAmount = val;
+          if (val != null && val > 0 && val < 500000) {
+            // Avoid year numbers like 2024, 2025, 2026 if standalone
+            if (val >= 2020 && val <= 2030 && !line.contains('.')) continue;
+
+            if (maxPlausibleAmount == null || val > maxPlausibleAmount) {
+              maxPlausibleAmount = val;
             }
           }
         }
       }
     }
 
-    return maxAmount;
+    return maxPlausibleAmount;
+  }
+
+  static double? _extractNumberFromLine(String line, RegExp numberRegex) {
+    final matches = numberRegex.allMatches(line);
+    double? bestVal;
+    for (final match in matches) {
+      final numStr = match.group(1)?.replaceAll(',', '');
+      if (numStr != null) {
+        final val = double.tryParse(numStr);
+        if (val != null && val > 0 && val < 500000) {
+          if (val >= 2020 && val <= 2030 && !line.contains('.')) continue;
+          bestVal = val;
+        }
+      }
+    }
+    return bestVal;
   }
 
   /// Extracts item names/lines

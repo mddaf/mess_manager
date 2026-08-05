@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../blocs/auth/auth_bloc.dart';
+import '../../../blocs/auth/auth_state.dart';
 import '../../../blocs/meal/meal_bloc.dart';
 import '../../../blocs/meal/meal_event.dart';
 import '../../../blocs/meal/meal_state.dart';
@@ -25,11 +27,19 @@ class MealCheckinScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
+    final authState = context.watch<AuthBloc>().state;
+    final currentUserId =
+        authState is Authenticated ? authState.user.uid : '';
+
     final messState = context.watch<MessBloc>().state;
     List<Member> members = [];
+    String managerId = '';
     if (messState is MessLoaded) {
       members = messState.members;
+      managerId = messState.mess.currentManagerId ?? '';
     }
+
+    final isManager = (currentUserId.isNotEmpty && currentUserId == managerId);
 
     return BlocBuilder<MealBloc, MealState>(
       builder: (context, state) {
@@ -64,7 +74,9 @@ class MealCheckinScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Cutoff: 10:00 PM • Entries Open',
+                        isManager
+                            ? 'Manager View • Can edit all meals'
+                            : 'Member View • Can edit own meals only',
                         style: TextStyle(
                           fontSize: 12,
                           color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -116,24 +128,36 @@ class MealCheckinScreen extends StatelessWidget {
                         final b = entry?.breakfast ?? 0.0;
                         final l = entry?.lunch ?? 0.0;
                         final d = entry?.dinner ?? 0.0;
-                        final locked = entry?.locked ?? false;
+                        final isOwnMeal = (mId == currentUserId);
+                        final canEdit = isManager || isOwnMeal;
+                        final locked = (entry?.locked ?? false) || !canEdit;
 
                         return MealToggleCard(
-                          memberName: mName,
+                          memberName: isOwnMeal ? '$mName (You)' : mName,
                           breakfast: b,
                           lunch: l,
                           dinner: d,
                           isLocked: locked,
                           onToggle: (mealType, currentVal) {
-                            context.read<MealBloc>().add(
-                                  ToggleMealRequested(
-                                    messId: messId,
-                                    memberId: mId,
-                                    date: dateStr,
-                                    mealType: mealType,
-                                    currentVal: currentVal,
-                                  ),
-                                );
+                            if (canEdit) {
+                              context.read<MealBloc>().add(
+                                    ToggleMealRequested(
+                                      messId: messId,
+                                      memberId: mId,
+                                      date: dateStr,
+                                      mealType: mealType,
+                                      currentVal: currentVal,
+                                    ),
+                                  );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Only the Manager can edit other members\' meals.'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                            }
                           },
                         );
                       },

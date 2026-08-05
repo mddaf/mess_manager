@@ -13,6 +13,7 @@ abstract class Deposit with _$Deposit {
     required double amount,
     required String date, // YYYY-MM-DD
     @Default('') String note,
+    @Default('approved') String status, // approved, pending, rejected
     DateTime? createdAt,
   }) = _Deposit;
 
