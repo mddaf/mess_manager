@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "842933413489",
+    "project_id": "meal-manager-844f5",
+    "storage_bucket": "meal-manager-844f5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:842933413489:android:65e90921f4879675fc1dd0",
+        "android_client_info": {
+          "package_name": "com.example.mess_manager"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "842933413489-efkkvff2idc9kkrmih6acu0fbob1vaov.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mess_manager",
+            "certificate_hash": "7cad04259acff6eb44bbf14701d3c0e29d9af09f"
+          }
+        },
+        {
+          "client_id": "842933413489-v21doomkf8ugdete768a1ocn4dad3541.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcLgrt4AZW2BYlvOvXc5d1GZbvATKYSDk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "842933413489-v21doomkf8ugdete768a1ocn4dad3541.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "842933413489-lgbv73mm0309l1fov703gvk6lvfs5ufl.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.messManager"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
