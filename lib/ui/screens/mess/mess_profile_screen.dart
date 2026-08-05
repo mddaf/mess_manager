@@ -356,6 +356,22 @@ class MessProfileScreen extends StatelessWidget {
     final authBloc = context.read<AuthBloc>();
     final router = GoRouter.of(context);
 
+    // Guard: Check if any member has unpaid dues
+    final hasDues = await repo.hasAnyMemberDuesInMess(messId);
+    if (hasDues) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '⚠️ Cannot delete mess: Member(s) have unpaid carried-forward dues. All member dues must be settled first.',
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -408,6 +424,22 @@ class MessProfileScreen extends StatelessWidget {
       List<Member> members) async {
     final approvedMembers =
         members.where((m) => m.status == 'approved').toList();
+
+    // Guard: Check if current leaving member has unpaid carried dues
+    final leavingMember = members.firstWhere((m) => m.userId == currentUserId,
+        orElse: () => Member(id: currentUserId, userId: currentUserId, name: '', email: ''));
+    if (leavingMember.openingDues > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '⚠️ You cannot leave the mess because you have unpaid carried-forward dues of ৳${leavingMember.openingDues.toStringAsFixed(2)}. Please settle with the manager first.',
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
 
     // Guard 1: Only admin in the mess must promote another admin first
     final isOnlyAdmin = currentRole == 'admin' &&

@@ -17,9 +17,9 @@ import '../../widgets/language_switcher.dart';
 import '../../widgets/theme_toggle.dart';
 import '../meals/meal_checkin_screen.dart';
 import '../grocery/grocery_list_screen.dart';
-import '../settlement/settlement_screen.dart';
 import '../deposits/deposit_screen.dart';
 import '../mess/mess_profile_screen.dart';
+import '../dashboard/mess_dashboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String messId;
@@ -65,9 +65,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     final pages = [
+      MessDashboardScreen(messId: widget.messId),
       MealCheckinScreen(messId: widget.messId, dateStr: _currentDateStr),
       GroceryListScreen(messId: widget.messId, monthStr: _currentMonthStr),
-      SettlementScreen(messId: widget.messId, monthStr: _currentMonthStr),
       DepositScreen(messId: widget.messId, monthStr: _currentMonthStr),
       MessProfileScreen(messId: widget.messId),
     ];
@@ -101,31 +101,31 @@ class _HomeScreenState extends State<HomeScreen> {
             _selectedIndex = index;
           });
         },
-        destinations: [
+        destinations: const [
           NavigationDestination(
-            icon: const Icon(Icons.restaurant_outlined),
-            selectedIcon: const Icon(Icons.restaurant),
-            label: l10n.mealCheckin,
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard_rounded),
+            label: 'Dashboard',
           ),
           NavigationDestination(
-            icon: const Icon(Icons.shopping_bag_outlined),
-            selectedIcon: const Icon(Icons.shopping_bag),
-            label: l10n.grocery,
+            icon: Icon(Icons.restaurant_outlined),
+            selectedIcon: Icon(Icons.restaurant),
+            label: 'Meals',
           ),
           NavigationDestination(
-            icon: const Icon(Icons.bar_chart_outlined),
-            selectedIcon: const Icon(Icons.bar_chart),
-            label: l10n.settlement,
+            icon: Icon(Icons.shopping_bag_outlined),
+            selectedIcon: Icon(Icons.shopping_bag),
+            label: 'Bazar',
           ),
           NavigationDestination(
-            icon: const Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: const Icon(Icons.account_balance_wallet),
-            label: l10n.deposits,
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet),
+            label: 'Deposits',
           ),
           NavigationDestination(
-            icon: const Icon(Icons.home_work_outlined),
-            selectedIcon: const Icon(Icons.home_work),
-            label: l10n.settings,
+            icon: Icon(Icons.home_work_outlined),
+            selectedIcon: Icon(Icons.home_work),
+            label: 'Settings',
           ),
         ],
       ),

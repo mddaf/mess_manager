@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants.dart';
 import '../../models/mess.dart';
 import '../../models/member.dart';
+import '../../models/settlement.dart';
+import '../../models/member_balance.dart';
 
 class MessRepository {
   final FirebaseFirestore _firestore;
@@ -362,6 +364,173 @@ class MessRepository {
 
     // Otherwise just remove this member
     await removeMember(messId: messId, memberId: userId);
+  }
+
+  /// Open New Month: Calculates settlement for ending month, archives it,
+  /// carries forward unpaid dues to openingDues of each member, and updates activeMonth!
+  Future<Settlement> openNewMonth({
+    required String messId,
+    required String currentMonth,
+    required String nextMonth,
+  }) async {
+    final messRef = _firestore.collection(AppConstants.collectionMesses).doc(messId);
+
+    // 1. Fetch approved groceries for currentMonth
+    final start = '$currentMonth-01';
+    final end = '$currentMonth-31';
+    final groceriesSnap = await messRef
+        .collection(AppConstants.collectionGroceryEntries)
+        .where('date', isGreaterThanOrEqualTo: start)
+        .where('date', isLessThanOrEqualTo: end)
+        .get();
+
+    double totalGroceryCost = 0.0;
+    for (final doc in groceriesSnap.docs) {
+      if (doc.data()['status'] == 'approved') {
+        totalGroceryCost += (doc.data()['amount'] as num? ?? 0.0).toDouble();
+      }
+    }
+
+    // 2. Fetch meal entries for currentMonth
+    final mealsSnap = await messRef
+        .collection(AppConstants.collectionMealEntries)
+        .where('date', isGreaterThanOrEqualTo: start)
+        .where('date', isLessThanOrEqualTo: end)
+        .get();
+
+    double totalMessMeals = 0.0;
+    final Map<String, double> memberMealCounts = {};
+    for (final doc in mealsSnap.docs) {
+      final data = doc.data();
+      final memberId = (data['memberId'] ?? data['userId']) as String? ?? '';
+      final b = (data['breakfast'] as num? ?? 0.0).toDouble();
+      final l = (data['lunch'] as num? ?? 0.0).toDouble();
+      final d = (data['dinner'] as num? ?? 0.0).toDouble();
+      final count = b + l + d;
+      totalMessMeals += count;
+      memberMealCounts[memberId] = (memberMealCounts[memberId] ?? 0.0) + count;
+    }
+
+    final double mealRate = totalMessMeals > 0 ? totalGroceryCost / totalMessMeals : 0.0;
+
+    // 3. Fetch approved deposits for currentMonth
+    final depositsSnap = await messRef
+        .collection(AppConstants.collectionDeposits)
+        .where('date', isGreaterThanOrEqualTo: start)
+        .where('date', isLessThanOrEqualTo: end)
+        .get();
+
+    final Map<String, double> memberDeposits = {};
+    for (final doc in depositsSnap.docs) {
+      if (doc.data()['status'] == 'approved') {
+        final memberId = (doc.data()['memberId'] ?? doc.data()['userId']) as String? ?? '';
+        final amount = (doc.data()['amount'] as num? ?? 0.0).toDouble();
+        memberDeposits[memberId] = (memberDeposits[memberId] ?? 0.0) + amount;
+      }
+    }
+
+    // 4. Fetch all members and calculate balances
+    final membersSnap = await messRef
+        .collection(AppConstants.collectionMembers)
+        .where('status', isEqualTo: 'approved')
+        .get();
+
+    final List<MemberBalance> memberBalances = [];
+    final batch = _firestore.batch();
+
+    for (final doc in membersSnap.docs) {
+      final member = Member.fromFirestore(doc, null);
+      final mMeals = memberMealCounts[member.userId] ?? 0.0;
+      final mDeposit = memberDeposits[member.userId] ?? 0.0;
+      final mCost = mMeals * mealRate;
+      final openingDues = member.openingDues;
+
+      // Net balance = Deposit - Cost - Opening Dues
+      final netBalance = mDeposit - mCost - openingDues;
+
+      memberBalances.add(MemberBalance(
+        memberId: member.userId,
+        memberName: member.name,
+        totalMeals: mMeals,
+        totalCost: mCost,
+        totalDeposit: mDeposit,
+        balance: netBalance,
+      ));
+
+      // Carry forward negative balance as new openingDues for next month!
+      final newOpeningDues = netBalance < 0 ? netBalance.abs() : 0.0;
+
+      // Update member doc in Firestore: reset totalDeposit for new month and update openingDues
+      batch.update(doc.reference, {
+        'openingDues': newOpeningDues,
+        'totalDeposit': 0.0,
+      });
+    }
+
+    // Save settlement document under settlements subcollection
+    final settlementDoc = messRef.collection(AppConstants.collectionSettlements).doc(currentMonth);
+    final settlement = Settlement(
+      id: currentMonth,
+      month: currentMonth,
+      totalGroceryCost: totalGroceryCost,
+      totalMeals: totalMessMeals,
+      mealRate: mealRate,
+      memberBalances: memberBalances,
+      status: 'settled',
+      calculatedAt: DateTime.now(),
+    );
+
+    batch.set(settlementDoc, Settlement.toFirestore(settlement, null));
+
+    // Update activeMonth on Mess doc
+    batch.update(messRef, {'activeMonth': nextMonth});
+
+    await batch.commit();
+
+    return settlement;
+  }
+
+  /// Check total unpaid dues for a user across all messes they belong to
+  Future<double> getUserTotalDues(String userId) async {
+    final userDoc = await _firestore.collection(AppConstants.collectionUsers).doc(userId).get();
+    if (!userDoc.exists) return 0.0;
+
+    final messIds = List<String>.from(userDoc.data()?['messIds'] ?? []);
+    double totalDues = 0.0;
+
+    for (final messId in messIds) {
+      final memberDoc = await _firestore
+          .collection(AppConstants.collectionMesses)
+          .doc(messId)
+          .collection(AppConstants.collectionMembers)
+          .doc(userId)
+          .get();
+
+      if (memberDoc.exists) {
+        final member = Member.fromFirestore(memberDoc, null);
+        if (member.openingDues > 0) {
+          totalDues += member.openingDues;
+        }
+      }
+    }
+
+    return totalDues;
+  }
+
+  /// Check if any member in the mess has outstanding dues
+  Future<bool> hasAnyMemberDuesInMess(String messId) async {
+    final membersSnap = await _firestore
+        .collection(AppConstants.collectionMesses)
+        .doc(messId)
+        .collection(AppConstants.collectionMembers)
+        .get();
+
+    for (final doc in membersSnap.docs) {
+      final member = Member.fromFirestore(doc, null);
+      if (member.openingDues > 0) return true;
+    }
+
+    return false;
   }
 
   Future<void> removeMember({

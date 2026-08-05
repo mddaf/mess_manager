@@ -61,6 +61,23 @@ class _MessSetupScreenState extends State<MessSetupScreen>
     setState(() => _loading = true);
     try {
       final repo = context.read<MessRepository>();
+      final totalDues = await repo.getUserTotalDues(auth.user.uid);
+      if (totalDues > 0) {
+        if (mounted) {
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '⚠️ You cannot create a mess because you have unpaid carried-forward dues of ৳${totalDues.toStringAsFixed(2)}. Please clear your dues first.',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+
       final mess = await repo.createMess(
         name: _nameController.text.trim(),
         address: _addressController.text.trim(),
@@ -88,6 +105,23 @@ class _MessSetupScreenState extends State<MessSetupScreen>
     setState(() => _loading = true);
     try {
       final repo = context.read<MessRepository>();
+      final totalDues = await repo.getUserTotalDues(auth.user.uid);
+      if (totalDues > 0) {
+        if (mounted) {
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '⚠️ You cannot join another mess because you have unpaid carried-forward dues of ৳${totalDues.toStringAsFixed(2)}. Please clear your dues first.',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+
       final mess = await repo.joinMessWithInviteCode(
         inviteCode: _inviteCodeController.text.trim().toUpperCase(),
         userId: auth.user.uid,

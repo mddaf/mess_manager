@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 mixin _$Member {
 
  String get id; String get userId; String get name; String get email; String get role;// admin, manager, member
- String? get avatarUrl; double get totalDeposit; String get status;// approved, pending, rejected
+ String? get avatarUrl; double get totalDeposit; double get openingDues; String get status;// approved, pending, rejected
  String? get pendingName; DateTime? get joinedAt;
 /// Create a copy of Member
 /// with the given fields replaced by the non-null parameter values.
@@ -30,16 +30,16 @@ $MemberCopyWith<Member> get copyWith => _$MemberCopyWithImpl<Member>(this as Mem
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Member&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.name, name) || other.name == name)&&(identical(other.email, email) || other.email == email)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.totalDeposit, totalDeposit) || other.totalDeposit == totalDeposit)&&(identical(other.status, status) || other.status == status)&&(identical(other.pendingName, pendingName) || other.pendingName == pendingName)&&(identical(other.joinedAt, joinedAt) || other.joinedAt == joinedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Member&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.name, name) || other.name == name)&&(identical(other.email, email) || other.email == email)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.totalDeposit, totalDeposit) || other.totalDeposit == totalDeposit)&&(identical(other.openingDues, openingDues) || other.openingDues == openingDues)&&(identical(other.status, status) || other.status == status)&&(identical(other.pendingName, pendingName) || other.pendingName == pendingName)&&(identical(other.joinedAt, joinedAt) || other.joinedAt == joinedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,userId,name,email,role,avatarUrl,totalDeposit,status,pendingName,joinedAt);
+int get hashCode => Object.hash(runtimeType,id,userId,name,email,role,avatarUrl,totalDeposit,openingDues,status,pendingName,joinedAt);
 
 @override
 String toString() {
-  return 'Member(id: $id, userId: $userId, name: $name, email: $email, role: $role, avatarUrl: $avatarUrl, totalDeposit: $totalDeposit, status: $status, pendingName: $pendingName, joinedAt: $joinedAt)';
+  return 'Member(id: $id, userId: $userId, name: $name, email: $email, role: $role, avatarUrl: $avatarUrl, totalDeposit: $totalDeposit, openingDues: $openingDues, status: $status, pendingName: $pendingName, joinedAt: $joinedAt)';
 }
 
 
@@ -50,7 +50,7 @@ abstract mixin class $MemberCopyWith<$Res>  {
   factory $MemberCopyWith(Member value, $Res Function(Member) _then) = _$MemberCopyWithImpl;
 @useResult
 $Res call({
- String id, String userId, String name, String email, String role, String? avatarUrl, double totalDeposit, String status, String? pendingName, DateTime? joinedAt
+ String id, String userId, String name, String email, String role, String? avatarUrl, double totalDeposit, double openingDues, String status, String? pendingName, DateTime? joinedAt
 });
 
 
@@ -67,7 +67,7 @@ class _$MemberCopyWithImpl<$Res>
 
 /// Create a copy of Member
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? userId = null,Object? name = null,Object? email = null,Object? role = null,Object? avatarUrl = freezed,Object? totalDeposit = null,Object? status = null,Object? pendingName = freezed,Object? joinedAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? userId = null,Object? name = null,Object? email = null,Object? role = null,Object? avatarUrl = freezed,Object? totalDeposit = null,Object? openingDues = null,Object? status = null,Object? pendingName = freezed,Object? joinedAt = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
@@ -76,6 +76,7 @@ as String,email: null == email ? _self.email : email // ignore: cast_nullable_to
 as String,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
 as String?,totalDeposit: null == totalDeposit ? _self.totalDeposit : totalDeposit // ignore: cast_nullable_to_non_nullable
+as double,openingDues: null == openingDues ? _self.openingDues : openingDues // ignore: cast_nullable_to_non_nullable
 as double,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,pendingName: freezed == pendingName ? _self.pendingName : pendingName // ignore: cast_nullable_to_non_nullable
 as String?,joinedAt: freezed == joinedAt ? _self.joinedAt : joinedAt // ignore: cast_nullable_to_non_nullable
@@ -164,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String userId,  String name,  String email,  String role,  String? avatarUrl,  double totalDeposit,  String status,  String? pendingName,  DateTime? joinedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String userId,  String name,  String email,  String role,  String? avatarUrl,  double totalDeposit,  double openingDues,  String status,  String? pendingName,  DateTime? joinedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Member() when $default != null:
-return $default(_that.id,_that.userId,_that.name,_that.email,_that.role,_that.avatarUrl,_that.totalDeposit,_that.status,_that.pendingName,_that.joinedAt);case _:
+return $default(_that.id,_that.userId,_that.name,_that.email,_that.role,_that.avatarUrl,_that.totalDeposit,_that.openingDues,_that.status,_that.pendingName,_that.joinedAt);case _:
   return orElse();
 
 }
@@ -185,10 +186,10 @@ return $default(_that.id,_that.userId,_that.name,_that.email,_that.role,_that.av
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String userId,  String name,  String email,  String role,  String? avatarUrl,  double totalDeposit,  String status,  String? pendingName,  DateTime? joinedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String userId,  String name,  String email,  String role,  String? avatarUrl,  double totalDeposit,  double openingDues,  String status,  String? pendingName,  DateTime? joinedAt)  $default,) {final _that = this;
 switch (_that) {
 case _Member():
-return $default(_that.id,_that.userId,_that.name,_that.email,_that.role,_that.avatarUrl,_that.totalDeposit,_that.status,_that.pendingName,_that.joinedAt);case _:
+return $default(_that.id,_that.userId,_that.name,_that.email,_that.role,_that.avatarUrl,_that.totalDeposit,_that.openingDues,_that.status,_that.pendingName,_that.joinedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -205,10 +206,10 @@ return $default(_that.id,_that.userId,_that.name,_that.email,_that.role,_that.av
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String userId,  String name,  String email,  String role,  String? avatarUrl,  double totalDeposit,  String status,  String? pendingName,  DateTime? joinedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String userId,  String name,  String email,  String role,  String? avatarUrl,  double totalDeposit,  double openingDues,  String status,  String? pendingName,  DateTime? joinedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _Member() when $default != null:
-return $default(_that.id,_that.userId,_that.name,_that.email,_that.role,_that.avatarUrl,_that.totalDeposit,_that.status,_that.pendingName,_that.joinedAt);case _:
+return $default(_that.id,_that.userId,_that.name,_that.email,_that.role,_that.avatarUrl,_that.totalDeposit,_that.openingDues,_that.status,_that.pendingName,_that.joinedAt);case _:
   return null;
 
 }
@@ -220,7 +221,7 @@ return $default(_that.id,_that.userId,_that.name,_that.email,_that.role,_that.av
 @JsonSerializable()
 
 class _Member implements Member {
-  const _Member({required this.id, required this.userId, required this.name, required this.email, this.role = 'member', this.avatarUrl, this.totalDeposit = 0.0, this.status = 'approved', this.pendingName, this.joinedAt});
+  const _Member({required this.id, required this.userId, required this.name, required this.email, this.role = 'member', this.avatarUrl, this.totalDeposit = 0.0, this.openingDues = 0.0, this.status = 'approved', this.pendingName, this.joinedAt});
   factory _Member.fromJson(Map<String, dynamic> json) => _$MemberFromJson(json);
 
 @override final  String id;
@@ -231,6 +232,7 @@ class _Member implements Member {
 // admin, manager, member
 @override final  String? avatarUrl;
 @override@JsonKey() final  double totalDeposit;
+@override@JsonKey() final  double openingDues;
 @override@JsonKey() final  String status;
 // approved, pending, rejected
 @override final  String? pendingName;
@@ -249,16 +251,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Member&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.name, name) || other.name == name)&&(identical(other.email, email) || other.email == email)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.totalDeposit, totalDeposit) || other.totalDeposit == totalDeposit)&&(identical(other.status, status) || other.status == status)&&(identical(other.pendingName, pendingName) || other.pendingName == pendingName)&&(identical(other.joinedAt, joinedAt) || other.joinedAt == joinedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Member&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.name, name) || other.name == name)&&(identical(other.email, email) || other.email == email)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.totalDeposit, totalDeposit) || other.totalDeposit == totalDeposit)&&(identical(other.openingDues, openingDues) || other.openingDues == openingDues)&&(identical(other.status, status) || other.status == status)&&(identical(other.pendingName, pendingName) || other.pendingName == pendingName)&&(identical(other.joinedAt, joinedAt) || other.joinedAt == joinedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,userId,name,email,role,avatarUrl,totalDeposit,status,pendingName,joinedAt);
+int get hashCode => Object.hash(runtimeType,id,userId,name,email,role,avatarUrl,totalDeposit,openingDues,status,pendingName,joinedAt);
 
 @override
 String toString() {
-  return 'Member(id: $id, userId: $userId, name: $name, email: $email, role: $role, avatarUrl: $avatarUrl, totalDeposit: $totalDeposit, status: $status, pendingName: $pendingName, joinedAt: $joinedAt)';
+  return 'Member(id: $id, userId: $userId, name: $name, email: $email, role: $role, avatarUrl: $avatarUrl, totalDeposit: $totalDeposit, openingDues: $openingDues, status: $status, pendingName: $pendingName, joinedAt: $joinedAt)';
 }
 
 
@@ -269,7 +271,7 @@ abstract mixin class _$MemberCopyWith<$Res> implements $MemberCopyWith<$Res> {
   factory _$MemberCopyWith(_Member value, $Res Function(_Member) _then) = __$MemberCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String userId, String name, String email, String role, String? avatarUrl, double totalDeposit, String status, String? pendingName, DateTime? joinedAt
+ String id, String userId, String name, String email, String role, String? avatarUrl, double totalDeposit, double openingDues, String status, String? pendingName, DateTime? joinedAt
 });
 
 
@@ -286,7 +288,7 @@ class __$MemberCopyWithImpl<$Res>
 
 /// Create a copy of Member
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? userId = null,Object? name = null,Object? email = null,Object? role = null,Object? avatarUrl = freezed,Object? totalDeposit = null,Object? status = null,Object? pendingName = freezed,Object? joinedAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? userId = null,Object? name = null,Object? email = null,Object? role = null,Object? avatarUrl = freezed,Object? totalDeposit = null,Object? openingDues = null,Object? status = null,Object? pendingName = freezed,Object? joinedAt = freezed,}) {
   return _then(_Member(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
@@ -295,6 +297,7 @@ as String,email: null == email ? _self.email : email // ignore: cast_nullable_to
 as String,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
 as String?,totalDeposit: null == totalDeposit ? _self.totalDeposit : totalDeposit // ignore: cast_nullable_to_non_nullable
+as double,openingDues: null == openingDues ? _self.openingDues : openingDues // ignore: cast_nullable_to_non_nullable
 as double,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,pendingName: freezed == pendingName ? _self.pendingName : pendingName // ignore: cast_nullable_to_non_nullable
 as String?,joinedAt: freezed == joinedAt ? _self.joinedAt : joinedAt // ignore: cast_nullable_to_non_nullable

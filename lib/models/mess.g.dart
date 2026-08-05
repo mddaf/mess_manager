@@ -14,6 +14,7 @@ _Mess _$MessFromJson(Map<String, dynamic> json) => _Mess(
   inviteCode: json['inviteCode'] as String,
   mealCutoffHour: (json['mealCutoffHour'] as num?)?.toInt() ?? 22,
   currency: json['currency'] as String? ?? '৳',
+  activeMonth: json['activeMonth'] as String? ?? '',
   currentManagerId: json['currentManagerId'] as String?,
   createdAt: json['createdAt'] == null
       ? null
@@ -28,6 +29,7 @@ Map<String, dynamic> _$MessToJson(_Mess instance) => <String, dynamic>{
   'inviteCode': instance.inviteCode,
   'mealCutoffHour': instance.mealCutoffHour,
   'currency': instance.currency,
+  'activeMonth': instance.activeMonth,
   'currentManagerId': instance.currentManagerId,
   'createdAt': instance.createdAt?.toIso8601String(),
 };

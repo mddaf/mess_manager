@@ -14,6 +14,7 @@ abstract class Mess with _$Mess {
     required String inviteCode,
     @Default(22) int mealCutoffHour,
     @Default('৳') String currency,
+    @Default('') String activeMonth, // e.g. 2026-08
     String? currentManagerId,
     DateTime? createdAt,
   }) = _Mess;
