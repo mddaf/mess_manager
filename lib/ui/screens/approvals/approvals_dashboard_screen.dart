@@ -8,6 +8,7 @@ import '../../../data/repositories/mess_repository.dart';
 import '../../../models/deposit.dart';
 import '../../../models/grocery_entry.dart';
 import '../../../models/member.dart';
+import '../grocery/grocery_details_modal.dart';
 
 class ApprovalsDashboardScreen extends StatelessWidget {
   final String messId;
@@ -81,6 +82,11 @@ class _PendingGroceriesTab extends StatelessWidget {
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: ListTile(
+                onTap: () => GroceryDetailsModal.show(
+                  context,
+                  messId: messId,
+                  entry: item,
+                ),
                 leading: CircleAvatar(
                   backgroundColor: theme.colorScheme.tertiaryContainer,
                   child: const Icon(Icons.shopping_bag_outlined),

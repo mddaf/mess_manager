@@ -17,8 +17,13 @@ import '../../../models/grocery_entry.dart';
 
 class AddGroceryScreen extends StatefulWidget {
   final String messId;
+  final GroceryEntry? existingEntry;
 
-  const AddGroceryScreen({super.key, required this.messId});
+  const AddGroceryScreen({
+    super.key,
+    required this.messId,
+    this.existingEntry,
+  });
 
   @override
   State<AddGroceryScreen> createState() => _AddGroceryScreenState();
@@ -48,6 +53,28 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     {'label': '🧹 Cleaning', 'text': 'Cleaning & Utility'},
     {'label': '🍿 Snacks & Tea', 'text': 'Snacks & Tea'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingEntry != null) {
+      final e = widget.existingEntry!;
+      _descriptionController.text = e.description;
+      _amountController.text = e.amount.toStringAsFixed(2);
+      _ocrExtractedAmount = e.ocrExtractedAmount;
+      if (e.date.isNotEmpty) {
+        try {
+          _selectedDate = DateTime.parse(e.date);
+        } catch (_) {}
+      }
+      for (final item in e.items) {
+        _itemControllers.add({
+          'name': TextEditingController(text: item.name),
+          'price': TextEditingController(text: item.price.toStringAsFixed(0)),
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -395,36 +422,67 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
 
       final status = isManager ? 'approved' : 'pending';
 
-      final entry = GroceryEntry(
-        id: 'groc_${DateTime.now().millisecondsSinceEpoch}',
-        purchasedBy: uid,
-        purchaserName: name,
-        description: _descriptionController.text.trim(),
-        amount: amount,
-        ocrExtractedAmount: _ocrExtractedAmount,
-        date: dateStr,
-        status: status,
-        createdAt: DateTime.now(),
-      );
+      if (widget.existingEntry != null) {
+        // EDIT MODE: Members can edit, but requires manager approval
+        final updatedEntry = widget.existingEntry!.copyWith(
+          description: _descriptionController.text.trim(),
+          amount: amount,
+          ocrExtractedAmount: _ocrExtractedAmount,
+          date: dateStr,
+          status: status,
+        );
 
-      context.read<GroceryBloc>().add(
-            AddGroceryRequested(
-              messId: widget.messId,
-              entry: entry,
-              receiptImagePath: _imagePath,
+        context.read<GroceryBloc>().add(
+              UpdateGroceryRequested(
+                messId: widget.messId,
+                entry: updatedEntry,
+                receiptImagePath: _imagePath,
+              ),
+            );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isManager
+                  ? 'Grocery entry updated & approved!'
+                  : 'Grocery edit submitted! Waiting for Manager approval.',
             ),
-          );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isManager
-                ? 'Grocery entry saved!'
-                : 'Grocery entry added! Waiting for Manager approval.',
+            backgroundColor: isManager ? Colors.green : Colors.orange,
           ),
-          backgroundColor: isManager ? Colors.green : Colors.orange,
-        ),
-      );
+        );
+      } else {
+        // ADD MODE
+        final entry = GroceryEntry(
+          id: 'groc_${DateTime.now().millisecondsSinceEpoch}',
+          purchasedBy: uid,
+          purchaserName: name,
+          description: _descriptionController.text.trim(),
+          amount: amount,
+          ocrExtractedAmount: _ocrExtractedAmount,
+          date: dateStr,
+          status: status,
+          createdAt: DateTime.now(),
+        );
+
+        context.read<GroceryBloc>().add(
+              AddGroceryRequested(
+                messId: widget.messId,
+                entry: entry,
+                receiptImagePath: _imagePath,
+              ),
+            );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isManager
+                  ? 'Grocery entry saved!'
+                  : 'Grocery entry added! Waiting for Manager approval.',
+            ),
+            backgroundColor: isManager ? Colors.green : Colors.orange,
+          ),
+        );
+      }
 
       Navigator.pop(context);
     }
@@ -434,14 +492,15 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final isEditMode = widget.existingEntry != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.addGrocery),
+        title: Text(isEditMode ? 'Edit Grocery Entry' : l10n.addGrocery),
         actions: [
           IconButton(
             icon: const Icon(Icons.document_scanner_rounded),
-            tooltip: 'Scan Receipt',
+            tooltip: 'Scan / Upload Receipt',
             onPressed: _showScanSourceModal,
           ),
         ],
@@ -451,12 +510,24 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
           if (state is GroceryLoaded && state.ocrResult != null) {
             final ocr = state.ocrResult!;
             _lastOcrResult = ocr;
+
+            // Auto-fill amount if empty or user tapped optional receipt upload
             if (ocr.extractedTotal != null) {
               setState(() {
                 _ocrExtractedAmount = ocr.extractedTotal;
-                _amountController.text = ocr.extractedTotal!.toStringAsFixed(2);
+                if (_amountController.text.isEmpty) {
+                  _amountController.text = ocr.extractedTotal!.toStringAsFixed(2);
+                }
               });
             }
+
+            // Auto-fill description if empty and items detected
+            if (_descriptionController.text.trim().isEmpty && ocr.extractedItems.isNotEmpty) {
+              setState(() {
+                _descriptionController.text = ocr.extractedItems.join(', ');
+              });
+            }
+
             _showOcrReviewDialog(ocr);
           }
         },
@@ -496,12 +567,12 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Scan Receipt / Paper Slip',
+                                  'Attach Receipt Photo (Optional)',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Supports handwritten & printed receipts (Bangla/English)',
+                                  'Auto-scans handwritten & printed slips on upload (Bangla/English)',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: theme.colorScheme.onSurfaceVariant,

@@ -45,6 +45,21 @@ class AddGroceryRequested extends GroceryEvent {
   List<Object?> get props => [messId, entry, receiptImagePath];
 }
 
+class UpdateGroceryRequested extends GroceryEvent {
+  final String messId;
+  final GroceryEntry entry;
+  final String? receiptImagePath;
+
+  const UpdateGroceryRequested({
+    required this.messId,
+    required this.entry,
+    this.receiptImagePath,
+  });
+
+  @override
+  List<Object?> get props => [messId, entry, receiptImagePath];
+}
+
 class DeleteGroceryRequested extends GroceryEvent {
   final String messId;
   final String entryId;

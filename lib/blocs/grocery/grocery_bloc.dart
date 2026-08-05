@@ -18,6 +18,7 @@ class GroceryBloc extends Bloc<GroceryEvent, GroceryState> {
     on<WatchMonthlyGroceriesRequested>(_onWatchMonthlyGroceries);
     on<ScanReceiptRequested>(_onScanReceipt);
     on<AddGroceryRequested>(_onAddGrocery);
+    on<UpdateGroceryRequested>(_onUpdateGrocery);
     on<DeleteGroceryRequested>(_onDeleteGrocery);
   }
 
@@ -75,6 +76,29 @@ class GroceryBloc extends Bloc<GroceryEvent, GroceryState> {
       await _groceryRepository.addGroceryEntry(
         messId: event.messId,
         entry: entryWithReceipt,
+      );
+    } catch (e) {
+      emit(GroceryError(e.toString()));
+    }
+  }
+
+  Future<void> _onUpdateGrocery(
+    UpdateGroceryRequested event,
+    Emitter<GroceryState> emit,
+  ) async {
+    try {
+      String? receiptUrl = event.entry.receiptUrl;
+      if (event.receiptImagePath != null) {
+        receiptUrl = await _groceryRepository.uploadReceiptPhoto(
+          messId: event.messId,
+          imagePath: event.receiptImagePath!,
+        );
+      }
+
+      final updatedEntry = event.entry.copyWith(receiptUrl: receiptUrl);
+      await _groceryRepository.updateGroceryEntry(
+        messId: event.messId,
+        entry: updatedEntry,
       );
     } catch (e) {
       emit(GroceryError(e.toString()));

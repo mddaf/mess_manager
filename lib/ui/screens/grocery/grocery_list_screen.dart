@@ -11,6 +11,7 @@ import '../../../core/extensions.dart';
 import '../../../data/repositories/grocery_repository.dart';
 import '../../../models/grocery_entry.dart';
 import 'add_grocery_screen.dart';
+import 'grocery_details_modal.dart';
 
 class GroceryListScreen extends StatelessWidget {
   final String messId;
@@ -104,6 +105,11 @@ class GroceryListScreen extends StatelessWidget {
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 6),
                             child: ListTile(
+                              onTap: () => GroceryDetailsModal.show(
+                                context,
+                                messId: messId,
+                                entry: item,
+                              ),
                               leading: CircleAvatar(
                                 backgroundColor: isPending
                                     ? theme.colorScheme.tertiaryContainer
