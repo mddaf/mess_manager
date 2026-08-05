@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../blocs/auth/auth_bloc.dart';
 import '../../../blocs/auth/auth_state.dart';
@@ -12,7 +13,7 @@ import '../../../models/meal_entry.dart';
 import '../../../models/member.dart';
 import '../../widgets/meal_toggle_card.dart';
 
-class MealCheckinScreen extends StatelessWidget {
+class MealCheckinScreen extends StatefulWidget {
   final String messId;
   final String dateStr;
 
@@ -23,19 +24,63 @@ class MealCheckinScreen extends StatelessWidget {
   });
 
   @override
+  State<MealCheckinScreen> createState() => _MealCheckinScreenState();
+}
+
+class _MealCheckinScreenState extends State<MealCheckinScreen> {
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      _selectedDate = DateTime.parse(widget.dateStr);
+    } catch (_) {
+      _selectedDate = DateTime.now();
+    }
+  }
+
+  String get _formattedDate => DateFormat('yyyy-MM-dd').format(_selectedDate);
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(now.year - 1, 1, 1),
+      lastDate: DateTime(now.year + 1, 12, 31),
+      helpText: 'Select Any Day in Current Month',
+    );
+
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+      if (mounted) {
+        context.read<MealBloc>().add(
+              WatchMealsForDateRequested(
+                messId: widget.messId,
+                date: DateFormat('yyyy-MM-dd').format(picked),
+              ),
+            );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
     final authState = context.watch<AuthBloc>().state;
-    final currentUserId =
-        authState is Authenticated ? authState.user.uid : '';
+    final currentUserId = authState is Authenticated ? authState.user.uid : '';
 
     final messState = context.watch<MessBloc>().state;
     List<Member> members = [];
     String managerId = '';
     if (messState is MessLoaded) {
-      members = messState.members;
+      members = messState.members.where((m) => m.status == 'approved').toList();
       managerId = messState.mess.currentManagerId ?? '';
     }
 
@@ -56,39 +101,47 @@ class MealCheckinScreen extends StatelessWidget {
 
         return Column(
           children: [
+            // ── Day Picker Header Banner ──────────────────────────────────
             Container(
               padding: const EdgeInsets.all(16.0),
               color: theme.colorScheme.surfaceContainerHighest,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '📅 $dateStr',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              '📅 $_formattedDate',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit_calendar_rounded, size: 22),
+                              tooltip: 'Pick Any Day in Month',
+                              onPressed: _pickDate,
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isManager
-                            ? 'Manager View • Can edit all meals'
-                            : 'Member View • Can edit own meals only',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        Text(
+                          isManager
+                              ? 'Manager Mode • Direct meal edits for any day'
+                              : 'Member Mode • Edit own meals (subject to manager review)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary,
                       borderRadius: BorderRadius.circular(20),
@@ -104,6 +157,8 @@ class MealCheckinScreen extends StatelessWidget {
                 ],
               ),
             ),
+
+            // ── Members Meal List ─────────────────────────────────────────
             Expanded(
               child: members.isEmpty
                   ? Center(
@@ -142,18 +197,30 @@ class MealCheckinScreen extends StatelessWidget {
                             if (canEdit) {
                               context.read<MealBloc>().add(
                                     ToggleMealRequested(
-                                      messId: messId,
+                                      messId: widget.messId,
                                       memberId: mId,
-                                      date: dateStr,
+                                      date: _formattedDate,
                                       mealType: mealType,
                                       currentVal: currentVal,
                                     ),
                                   );
+
+                              if (!isManager && isOwnMeal) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Meal updated for $_formattedDate! Saved for Manager review.',
+                                    ),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
-                                      'Only the Manager can edit other members\' meals.'),
+                                    'Only the Manager can edit other members\' meals.',
+                                  ),
                                   backgroundColor: Colors.orange,
                                 ),
                               );

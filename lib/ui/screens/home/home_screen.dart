@@ -15,10 +15,10 @@ import '../../../blocs/settlement/settlement_bloc.dart';
 import '../../../blocs/settlement/settlement_event.dart';
 import '../../widgets/language_switcher.dart';
 import '../../widgets/theme_toggle.dart';
+import '../../widgets/app_drawer.dart';
 import '../meals/meal_checkin_screen.dart';
 import '../grocery/grocery_list_screen.dart';
 import '../deposits/deposit_screen.dart';
-import '../settlement/settlement_screen.dart';
 import '../mess/mess_profile_screen.dart';
 import '../dashboard/mess_dashboard_screen.dart';
 
@@ -70,7 +70,6 @@ class _HomeScreenState extends State<HomeScreen> {
       MealCheckinScreen(messId: widget.messId, dateStr: _currentDateStr),
       GroceryListScreen(messId: widget.messId, monthStr: _currentMonthStr),
       DepositScreen(messId: widget.messId, monthStr: _currentMonthStr),
-      SettlementScreen(messId: widget.messId, monthStr: _currentMonthStr),
       MessProfileScreen(messId: widget.messId),
     ];
 
@@ -95,9 +94,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: pages[_selectedIndex],
-      bottomNavigationBar: NavigationBar(
+      drawer: AppDrawer(
+        messId: widget.messId,
         selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+      ),
+      body: pages[_selectedIndex < pages.length ? _selectedIndex : 0],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex < 4 ? _selectedIndex : 0,
         onDestinationSelected: (index) {
           setState(() {
             _selectedIndex = index;
@@ -123,16 +131,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.account_balance_wallet_outlined),
             selectedIcon: Icon(Icons.account_balance_wallet),
             label: 'Deposits',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Settlement',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.home_work_outlined),
-            selectedIcon: Icon(Icons.home_work),
-            label: 'Settings',
           ),
         ],
       ),

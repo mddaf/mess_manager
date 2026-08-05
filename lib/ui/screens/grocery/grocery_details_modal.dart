@@ -211,6 +211,36 @@ class GroceryDetailsModal extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
+          // Itemized Bill Breakdown Table
+          if (entry.items.isNotEmpty) ...[
+            Text('Itemized Bill Breakdown',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Card(
+              elevation: 1,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: entry.items.map((item) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('• ${item.name}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                          Text('৳${item.price.toStringAsFixed(2)}',
+                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
           // Attached Receipt Image Section
           if (entry.receiptUrl != null && entry.receiptUrl!.isNotEmpty) ...[
             Text('Attached Receipt',

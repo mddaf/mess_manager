@@ -186,12 +186,30 @@ class SettlementRepository {
             snapshot.docs.map((doc) => Settlement.fromFirestore(doc, null)).toList());
   }
 
-  /// Delete/Re-open an archived month: Deletes settlement doc and reverts mess activeMonth
+  /// Delete/Re-open an archived month: Deletes settlement doc and reverts mess activeMonth.
+  /// Enforces that only the immediately preceding consecutive month relative to activeMonth can be re-opened.
   Future<void> deleteArchivedMonth({
     required String messId,
     required String month,
   }) async {
     final messRef = _firestore.collection(AppConstants.collectionMesses).doc(messId);
+    final messSnap = await messRef.get();
+    final activeMonth = messSnap.data()?['activeMonth'] as String? ?? '';
+
+    if (activeMonth.isNotEmpty) {
+      final activeDate = DateTime.parse('$activeMonth-01');
+      final expectedPrevDate = DateTime(activeDate.year, activeDate.month - 1);
+      final expectedPrevMonth =
+          '${expectedPrevDate.year}-${expectedPrevDate.month.toString().padLeft(2, '0')}';
+
+      if (month != expectedPrevMonth) {
+        throw Exception(
+          '⚠️ You can only re-open the immediately preceding consecutive month ($expectedPrevMonth). '
+          'Please re-open $expectedPrevMonth before re-opening $month.',
+        );
+      }
+    }
+
     final batch = _firestore.batch();
 
     // 1. Delete settlement document

@@ -89,4 +89,42 @@ class DepositRepository {
       });
     }
   }
+
+  /// Update deposit details (Amount, Note, Status)
+  Future<void> updateDeposit({
+    required String messId,
+    required Deposit deposit,
+  }) async {
+    await _firestore
+        .collection(AppConstants.collectionMesses)
+        .doc(messId)
+        .collection(AppConstants.collectionDeposits)
+        .doc(deposit.id)
+        .set(Deposit.toFirestore(deposit, null), SetOptions(merge: true));
+  }
+
+  /// Delete a deposit document & adjust member balance if it was approved
+  Future<void> deleteDeposit({
+    required String messId,
+    required String depositId,
+    required String memberId,
+    required double amount,
+    required String status,
+  }) async {
+    final messRef = _firestore.collection(AppConstants.collectionMesses).doc(messId);
+    final batch = _firestore.batch();
+
+    // 1. Delete deposit document
+    batch.delete(messRef.collection(AppConstants.collectionDeposits).doc(depositId));
+
+    // 2. Decrement member totalDeposit if previously approved
+    if (status == 'approved') {
+      batch.update(
+        messRef.collection(AppConstants.collectionMembers).doc(memberId),
+        {'totalDeposit': FieldValue.increment(-amount)},
+      );
+    }
+
+    await batch.commit();
+  }
 }
