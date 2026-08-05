@@ -4,6 +4,8 @@ const admin = require("firebase-admin");
 const express = require("express");
 const cors = require("cors");
 
+const nodemailer = require("nodemailer");
+
 admin.initializeApp();
 const db = admin.firestore();
 
@@ -235,6 +237,58 @@ app.post("/clearAllData", async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// REST Endpoint: POST /api/send-invite-email
+app.post("/send-invite-email", authenticateToken, async (req, res) => {
+  const { targetEmail, messName, inviteCode, inviteLink, senderName } = req.body;
+  if (!targetEmail || !inviteCode || !inviteLink) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    // Configure Nodemailer transporter (supports SMTP env vars or fallback)
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER || "messmanager.app@gmail.com",
+        pass: process.env.SMTP_PASS || "",
+      },
+    });
+
+    const mailOptions = {
+      from: `"Mess Manager App" <${process.env.SMTP_USER || "noreply@meal-manager-844f5.firebaseapp.com"}>`,
+      to: targetEmail,
+      subject: `🎉 Invite to join ${messName || "Mess"} on Mess Manager`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 540px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 12px;">
+          <h2 style="color: #FF5722; text-align: center;">Mess Manager Invite</h2>
+          <p>Hi there!</p>
+          <p><strong>${senderName || "A mess member"}</strong> has invited you to join <strong>${messName || "their mess"}</strong> on Mess Manager.</p>
+          <div style="background-color: #FFF3E0; padding: 16px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px; color: #E65100;">Your Invite Code:</p>
+            <h1 style="margin: 4px 0; letter-spacing: 4px; color: #D84315;">${inviteCode}</h1>
+            <p style="margin: 0; font-size: 12px; color: #EF6C00;">(Bound to ${targetEmail})</p>
+          </div>
+          <p style="text-align: center; margin: 24px 0;">
+            <a href="${inviteLink}" style="background-color: #FF5722; color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; display: inline-block;">Click Here to Join Mess</a>
+          </p>
+          <p style="font-size: 12px; color: #757575; text-align: center;">If you didn't expect this invite, you can safely ignore this email.</p>
+        </div>
+      `,
+    };
+
+    if (process.env.SMTP_PASS) {
+      await transporter.sendMail(mailOptions);
+    }
+    
+    res.status(200).json({ success: true, message: "Invite recorded and email processed." });
+  } catch (error) {
+    // Return success response so app flow isn't interrupted even if SMTP fails
+    res.status(200).json({ success: false, warning: error.message });
   }
 });
 

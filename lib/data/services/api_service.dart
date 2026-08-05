@@ -69,4 +69,32 @@ class ApiService {
       return 0.0;
     }
   }
+
+  /// REST Endpoint: POST /api/send-invite-email
+  Future<void> sendInviteEmail({
+    required String targetEmail,
+    required String messName,
+    required String inviteCode,
+    required String inviteLink,
+    required String senderName,
+  }) async {
+    try {
+      final token = await _getAuthToken();
+      final url = Uri.parse('${AppConstants.apiBaseUrl}/send-invite-email');
+      await _client.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'targetEmail': targetEmail,
+          'messName': messName,
+          'inviteCode': inviteCode,
+          'inviteLink': inviteLink,
+          'senderName': senderName,
+        }),
+      );
+    } catch (_) {}
+  }
 }

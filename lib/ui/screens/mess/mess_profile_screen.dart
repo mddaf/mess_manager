@@ -16,6 +16,8 @@ import '../../widgets/language_switcher.dart';
 import '../../widgets/theme_toggle.dart';
 import '../approvals/approvals_dashboard_screen.dart';
 
+import '../../../data/services/api_service.dart';
+
 class MessProfileScreen extends StatelessWidget {
   final String messId;
 
@@ -165,52 +167,113 @@ class MessProfileScreen extends StatelessWidget {
 
       final messState = context.read<MessBloc>().state;
       final messName = messState is MessLoaded ? messState.mess.name : 'Mess';
+      final authState = context.read<AuthBloc>().state;
+      final senderName = authState is Authenticated ? authState.user.name : 'Flatmate';
       final link = 'https://meal-manager-844f5.web.app/join?code=$code&email=$targetEmail';
 
-      // Copy to clipboard
+      // 1. Copy to clipboard
       Clipboard.setData(ClipboardData(text: link));
 
-      // Open email client with pre-filled invite
-      final subject = Uri.encodeComponent('You are invited to join $messName on Mess Manager');
-      final body = Uri.encodeComponent(
-        'Hi,\n\nYou have been invited to join $messName on Mess Manager.\n\n'
-        'Your invite code: $code\n\n'
-        'Click the link below to join (you must register/login with this email address):\n'
-        '$link\n\n'
-        'This invite is bound to this email address only.\n\nCheers,\nMess Manager',
+      // 2. Trigger Cloud Function API email delivery attempt
+      ApiService().sendInviteEmail(
+        targetEmail: targetEmail,
+        messName: messName,
+        inviteCode: code,
+        inviteLink: link,
+        senderName: senderName,
       );
-      final mailtoUri = Uri.parse('mailto:$targetEmail?subject=$subject&body=$body');
 
-      try {
-        await launchUrl(mailtoUri, mode: LaunchMode.externalApplication);
-      } catch (_) {
-        // Email app not available — show dialog with link
-      }
+      final subjectRaw = 'You are invited to join $messName on Mess Manager';
+      final bodyRaw =
+          'Hi,\n\n$senderName invited you to join $messName on Mess Manager.\n\n'
+          'Invite Code: $code\n'
+          'Direct Link: $link\n\n'
+          'This invite is bound to $targetEmail.';
+
+      final subjectEncoded = Uri.encodeComponent(subjectRaw);
+      final bodyEncoded = Uri.encodeComponent(bodyRaw);
+
+      final gmailWebUri = Uri.parse(
+          'https://mail.google.com/mail/?view=cm&fs=1&to=$targetEmail&su=$subjectEncoded&body=$bodyEncoded');
+      final mailtoUri = Uri.parse('mailto:$targetEmail?subject=$subjectEncoded&body=$bodyEncoded');
+      final waUri = Uri.parse('https://wa.me/?text=$bodyEncoded');
 
       if (context.mounted) {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Invite Link Created!'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('📧 Email app opened with pre-filled invite (if available).'),
-                const SizedBox(height: 8),
-                const Text('Invite Code:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                SelectableText(code,
-                    style: const TextStyle(letterSpacing: 3, fontSize: 18)),
-                const SizedBox(height: 8),
-                const Text('Bound Email:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                SelectableText(targetEmail),
-                const SizedBox(height: 8),
-                const Text('Direct Link (copied to clipboard):',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                SelectableText(link, style: const TextStyle(fontSize: 11)),
-              ],
+            title: const Text('🎉 Invite Link Created!'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.vpn_key_rounded, color: Colors.orange.shade800, size: 20),
+                            const SizedBox(width: 8),
+                            Text('Invite Code: $code',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.orange.shade900)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text('Bound to: $targetEmail',
+                            style: TextStyle(fontSize: 12, color: Colors.orange.shade900)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Send options:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => launchUrl(gmailWebUri, mode: LaunchMode.externalApplication),
+                      icon: const Icon(Icons.mark_email_read_rounded, size: 18),
+                      label: const Text('Open in Gmail Web (Direct Compose)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade700,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => launchUrl(waUri, mode: LaunchMode.externalApplication),
+                      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                      label: const Text('Share via WhatsApp'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => launchUrl(mailtoUri, mode: LaunchMode.externalApplication),
+                      icon: const Icon(Icons.email_outlined, size: 18),
+                      label: const Text('Open Default Mail App'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Direct Link (copied to clipboard):',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  SelectableText(link, style: const TextStyle(fontSize: 11, color: Colors.blue)),
+                ],
+              ),
             ),
             actions: [
               ElevatedButton(
