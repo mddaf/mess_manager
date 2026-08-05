@@ -9,19 +9,185 @@ import '../../../blocs/mess/mess_bloc.dart';
 import '../../../blocs/mess/mess_state.dart';
 import '../../../data/repositories/mess_repository.dart';
 import '../../../models/member.dart';
+import '../../../models/mess.dart';
 import '../../widgets/language_switcher.dart';
 import '../../widgets/theme_toggle.dart';
+import '../approvals/approvals_dashboard_screen.dart';
 
 class MessProfileScreen extends StatelessWidget {
   final String messId;
 
   const MessProfileScreen({super.key, required this.messId});
 
+  Future<void> _showEditMessDialog(BuildContext context, Mess mess) async {
+    final nameController = TextEditingController(text: mess.name);
+    final addressController = TextEditingController(text: mess.address);
+    int cutoffHour = mess.mealCutoffHour;
+    final formKey = GlobalKey<FormState>();
+    final repo = context.read<MessRepository>();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Text('Edit Mess Details'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameController,
+                        decoration: const InputDecoration(labelText: 'Mess Name'),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter mess name' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: addressController,
+                        decoration: const InputDecoration(labelText: 'Address'),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter address' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        initialValue: cutoffHour,
+                        decoration: const InputDecoration(labelText: 'Daily Meal Cutoff Time'),
+                        items: const [
+                          DropdownMenuItem(value: 20, child: Text('8:00 PM')),
+                          DropdownMenuItem(value: 21, child: Text('9:00 PM')),
+                          DropdownMenuItem(value: 22, child: Text('10:00 PM (Default)')),
+                          DropdownMenuItem(value: 23, child: Text('11:00 PM')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setDialogState(() => cutoffHour = val);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState!.validate()) Navigator.pop(ctx, true);
+                  },
+                  child: const Text('Save Changes'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == true) {
+      await repo.updateMessDetails(
+        messId: messId,
+        name: nameController.text.trim(),
+        address: addressController.text.trim(),
+        mealCutoffHour: cutoffHour,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mess details updated!'), backgroundColor: Colors.green),
+        );
+      }
+    }
+  }
+
+  Future<void> _showSendEmailInviteDialog(
+      BuildContext context, String currentUserId, String currentRole) async {
+    final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final repo = context.read<MessRepository>();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Send Email Invite Link'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Enter recipient email to bind invite code to that specific email:'),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Target Member Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Enter email';
+                    if (!v.contains('@') || !v.contains('.')) return 'Enter valid email';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) Navigator.pop(ctx, true);
+              },
+              child: const Text('Generate Invite Link'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      final targetEmail = emailController.text.trim().toLowerCase();
+      final code = await repo.createEmailInvite(
+        messId: messId,
+        targetEmail: targetEmail,
+        invitedByUserId: currentUserId,
+        invitedByRole: currentRole,
+      );
+
+      final link = 'https://meal-manager-844f5.web.app/join?code=$code&email=$targetEmail';
+      Clipboard.setData(ClipboardData(text: link));
+
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Email Invite Link Created!'),
+            content: SelectableText(
+              'Invite Code: $code\nBound Email: $targetEmail\n\nDirect Link:\n$link\n\n(Copied to Clipboard!)',
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _rotateManager(BuildContext context, List<Member> members) async {
     final current = context.read<MessBloc>().state;
     if (current is! MessLoaded) return;
     final currentManagerId = current.mess.currentManagerId;
-    // Cache repo before async gap
     final repo = context.read<MessRepository>();
 
     final selected = await showDialog<String>(
@@ -81,7 +247,6 @@ class MessProfileScreen extends StatelessWidget {
   }
 
   Future<void> _deleteMess(BuildContext context, String userId) async {
-    // Cache repo and router before async gap
     final repo = context.read<MessRepository>();
     final router = GoRouter.of(context);
 
@@ -134,7 +299,6 @@ class MessProfileScreen extends StatelessWidget {
       );
       return;
     }
-    // Cache repo before async gap
     final repo = context.read<MessRepository>();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -182,8 +346,12 @@ class MessProfileScreen extends StatelessWidget {
 
         final mess = state.mess;
         final members = state.members;
-        final isAdmin = members
-            .any((m) => m.userId == currentUserId && m.role == 'admin');
+        final currentMember = members.firstWhere(
+          (m) => m.userId == currentUserId,
+          orElse: () => Member(id: '', userId: '', name: '', email: ''),
+        );
+
+        final isAdmin = currentMember.role == 'admin';
         final isManager = mess.currentManagerId == currentUserId;
 
         return SingleChildScrollView(
@@ -222,6 +390,12 @@ class MessProfileScreen extends StatelessWidget {
                               ],
                             ),
                           ),
+                          if (isAdmin)
+                            IconButton(
+                              icon: const Icon(Icons.edit_rounded),
+                              tooltip: 'Edit Mess Details',
+                              onPressed: () => _showEditMessDialog(context, mess),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -262,10 +436,16 @@ class MessProfileScreen extends StatelessWidget {
                                   ClipboardData(text: mess.inviteCode));
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                    content:
-                                        Text('Invite code copied!')),
+                                    content: Text('Invite code copied!')),
                               );
                             },
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            icon: const Icon(Icons.forward_to_inbox_rounded, size: 18),
+                            label: const Text('Email Invite Link'),
+                            onPressed: () => _showSendEmailInviteDialog(
+                                context, currentUserId, currentMember.role),
                           ),
                         ],
                       ),
@@ -274,6 +454,31 @@ class MessProfileScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
+
+              // ── Admin & Manager Dashboard Action Card ─────────────
+              if (isAdmin || isManager) ...[
+                Card(
+                  color: theme.colorScheme.tertiaryContainer,
+                  child: ListTile(
+                    leading: const Icon(Icons.dashboard_customize_rounded),
+                    title: const Text('Approvals Dashboard',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text(
+                        'Review pending groceries, deposits, member joins & profile edits'),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ApprovalsDashboardScreen(messId: messId),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               // ── Current Manager ──────────────────────────────────
               Card(
@@ -333,53 +538,72 @@ class MessProfileScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              ...members.map((member) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: theme.colorScheme.secondaryContainer,
-                        child: Text(
-                          member.name.isNotEmpty
-                              ? member.name[0].toUpperCase()
-                              : '?',
-                          style: TextStyle(
-                              color: theme.colorScheme.onSecondaryContainer,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      title: Text(member.name),
-                      subtitle: Text(member.email),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Chip(
-                            label: Text(
-                              member.role == 'admin'
-                                  ? 'Admin'
-                                  : member.userId == mess.currentManagerId
-                                      ? 'Manager'
-                                      : 'Member',
-                              style: const TextStyle(fontSize: 11),
-                            ),
-                            backgroundColor: member.role == 'admin'
-                                ? theme.colorScheme.errorContainer
-                                : member.userId == mess.currentManagerId
-                                    ? theme.colorScheme.primaryContainer
-                                    : theme.colorScheme.surfaceContainerHighest,
-                          ),
-                          if (isAdmin && member.userId != currentUserId)
-                            IconButton(
-                              icon: const Icon(Icons.person_remove_rounded,
-                                  size: 20),
-                              tooltip: 'Remove Member',
-                              color: theme.colorScheme.error,
-                              onPressed: () =>
-                                  _removeMember(context, member, currentUserId),
-                            ),
-                        ],
+              ...members.map((member) {
+                final isPendingJoin = (member.status == 'pending');
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: isPendingJoin
+                          ? theme.colorScheme.tertiaryContainer
+                          : theme.colorScheme.secondaryContainer,
+                      child: Text(
+                        member.name.isNotEmpty
+                            ? member.name[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                            color: theme.colorScheme.onSecondaryContainer,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
-                  )),
+                    title: Text(member.name),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(member.email),
+                        if (isPendingJoin)
+                          const Text(
+                            '⏳ Pending Admin Approval',
+                            style: TextStyle(
+                                color: Colors.orange,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold),
+                          ),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Chip(
+                          label: Text(
+                            member.role == 'admin'
+                                ? 'Admin'
+                                : member.userId == mess.currentManagerId
+                                    ? 'Manager'
+                                    : 'Member',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          backgroundColor: member.role == 'admin'
+                              ? theme.colorScheme.errorContainer
+                              : member.userId == mess.currentManagerId
+                                  ? theme.colorScheme.primaryContainer
+                                  : theme.colorScheme.surfaceContainerHighest,
+                        ),
+                        if (isAdmin && member.userId != currentUserId)
+                          IconButton(
+                            icon: const Icon(Icons.person_remove_rounded,
+                                size: 20),
+                            tooltip: 'Remove Member',
+                            color: theme.colorScheme.error,
+                            onPressed: () =>
+                                _removeMember(context, member, currentUserId),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
               const SizedBox(height: 24),
 
               // ── Danger Zone ──────────────────────────────────────

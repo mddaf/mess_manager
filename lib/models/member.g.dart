@@ -14,6 +14,8 @@ _Member _$MemberFromJson(Map<String, dynamic> json) => _Member(
   role: json['role'] as String? ?? 'member',
   avatarUrl: json['avatarUrl'] as String?,
   totalDeposit: (json['totalDeposit'] as num?)?.toDouble() ?? 0.0,
+  status: json['status'] as String? ?? 'approved',
+  pendingName: json['pendingName'] as String?,
   joinedAt: json['joinedAt'] == null
       ? null
       : DateTime.parse(json['joinedAt'] as String),
@@ -27,5 +29,7 @@ Map<String, dynamic> _$MemberToJson(_Member instance) => <String, dynamic>{
   'role': instance.role,
   'avatarUrl': instance.avatarUrl,
   'totalDeposit': instance.totalDeposit,
+  'status': instance.status,
+  'pendingName': instance.pendingName,
   'joinedAt': instance.joinedAt?.toIso8601String(),
 };

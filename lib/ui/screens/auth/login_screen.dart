@@ -5,6 +5,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../blocs/auth/auth_bloc.dart';
 import '../../../blocs/auth/auth_event.dart';
 import '../../../blocs/auth/auth_state.dart';
+import '../../../data/repositories/auth_repository.dart';
 import '../../widgets/language_switcher.dart';
 import '../../widgets/theme_toggle.dart';
 
@@ -46,6 +47,81 @@ class _LoginScreenState extends State<LoginScreen> {
     context.read<AuthBloc>().add(AuthGoogleSignInRequested());
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    final resetEmailController = TextEditingController(text: _emailController.text.trim());
+    final formKey = GlobalKey<FormState>();
+    final authRepo = context.read<AuthRepository>();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Reset Password'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Enter your registered email address to receive a password reset link:'),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: resetEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email Address',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Enter email address';
+                    if (!v.contains('@') || !v.contains('.')) return 'Enter valid email';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.pop(ctx, true);
+                }
+              },
+              child: const Text('Send Reset Link'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      try {
+        await authRepo.sendPasswordResetEmail(resetEmailController.text.trim());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Password reset email sent! Check your inbox.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -62,8 +138,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         } else if (state is Authenticated) {
-          // GoRouterRefreshStream will handle the navigation automatically.
-          // Do NOT call context.go() here to avoid double navigation.
           setState(() => _localLoading = false);
         } else if (state is Unauthenticated) {
           setState(() => _localLoading = false);
@@ -145,7 +219,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             return null;
                           },
                         ),
-                        const SizedBox(height: 24),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _showForgotPasswordDialog,
+                            child: const Text('Forgot Password?'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         ElevatedButton(
                           onPressed: _localLoading ? null : _submit,
                           style: ElevatedButton.styleFrom(

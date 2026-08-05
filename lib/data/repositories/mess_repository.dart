@@ -38,13 +38,14 @@ class MessRepository {
 
     await messDoc.set(Mess.toFirestore(mess, null));
 
-    // Creator is Admin and initial Manager
+    // Creator is Admin and initial Manager (Auto-approved)
     final member = Member(
       id: userId,
       userId: userId,
       name: userName,
       email: userEmail,
       role: 'admin',
+      status: 'approved',
       joinedAt: DateTime.now(),
     );
 
@@ -64,15 +65,42 @@ class MessRepository {
     return mess;
   }
 
+  /// Create an email-bound invite code
+  Future<String> createEmailInvite({
+    required String messId,
+    required String targetEmail,
+    required String invitedByUserId,
+    required String invitedByRole, // 'admin' or 'member'
+  }) async {
+    final inviteCode = _generateInviteCode();
+    await _firestore
+        .collection(AppConstants.collectionMesses)
+        .doc(messId)
+        .collection('invites')
+        .doc(targetEmail.trim().toLowerCase())
+        .set({
+      'targetEmail': targetEmail.trim().toLowerCase(),
+      'inviteCode': inviteCode,
+      'invitedBy': invitedByUserId,
+      'invitedByRole': invitedByRole,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    return inviteCode;
+  }
+
   Future<Mess?> joinMessWithInviteCode({
     required String inviteCode,
     required String userId,
     required String userName,
     required String userEmail,
   }) async {
+    final cleanCode = inviteCode.trim().toUpperCase();
+    final cleanEmail = userEmail.trim().toLowerCase();
+
     final query = await _firestore
         .collection(AppConstants.collectionMesses)
-        .where('inviteCode', isEqualTo: inviteCode.trim().toUpperCase())
+        .where('inviteCode', isEqualTo: cleanCode)
         .limit(1)
         .get();
 
@@ -81,11 +109,28 @@ class MessRepository {
     final messDoc = query.docs.first;
     final mess = Mess.fromFirestore(messDoc, null);
 
+    // Check email-specific invite if available
+    String memberStatus = 'approved'; // Default if admin general code
+    final inviteDoc = await messDoc.reference
+        .collection('invites')
+        .doc(cleanEmail)
+        .get();
+
+    if (inviteDoc.exists) {
+      final data = inviteDoc.data()!;
+      final role = data['invitedByRole'] as String? ?? 'admin';
+      // Members adding invites require Admin Approval
+      if (role == 'member') {
+        memberStatus = 'pending';
+      }
+    }
+
     // Check if already a member
     final existingMember = await messDoc.reference
         .collection(AppConstants.collectionMembers)
         .doc(userId)
         .get();
+
     if (existingMember.exists) return mess;
 
     final member = Member(
@@ -94,6 +139,7 @@ class MessRepository {
       name: userName,
       email: userEmail,
       role: 'member',
+      status: memberStatus,
       joinedAt: DateTime.now(),
     );
 
@@ -132,6 +178,96 @@ class MessRepository {
             .toList());
   }
 
+  /// Admin edits Mess Profile (Name, Address, Cutoff Hour)
+  Future<void> updateMessDetails({
+    required String messId,
+    required String name,
+    required String address,
+    required int mealCutoffHour,
+  }) async {
+    await _firestore
+        .collection(AppConstants.collectionMesses)
+        .doc(messId)
+        .update({
+      'name': name.trim(),
+      'address': address.trim(),
+      'mealCutoffHour': mealCutoffHour,
+    });
+  }
+
+  /// Member requests profile name change (Requires Admin Approval)
+  Future<void> requestMemberNameUpdate({
+    required String messId,
+    required String memberId,
+    required String newName,
+  }) async {
+    await _firestore
+        .collection(AppConstants.collectionMesses)
+        .doc(messId)
+        .collection(AppConstants.collectionMembers)
+        .doc(memberId)
+        .update({'pendingName': newName.trim()});
+  }
+
+  /// Admin approves member join
+  Future<void> approveMemberJoin({
+    required String messId,
+    required String memberId,
+  }) async {
+    await _firestore
+        .collection(AppConstants.collectionMesses)
+        .doc(messId)
+        .collection(AppConstants.collectionMembers)
+        .doc(memberId)
+        .update({'status': 'approved'});
+  }
+
+  /// Admin rejects member join
+  Future<void> rejectMemberJoin({
+    required String messId,
+    required String memberId,
+  }) async {
+    await removeMember(messId: messId, memberId: memberId);
+  }
+
+  /// Admin approves member profile edit
+  Future<void> approveMemberNameUpdate({
+    required String messId,
+    required String memberId,
+    required String approvedName,
+  }) async {
+    final batch = _firestore.batch();
+    batch.update(
+      _firestore
+          .collection(AppConstants.collectionMesses)
+          .doc(messId)
+          .collection(AppConstants.collectionMembers)
+          .doc(memberId),
+      {
+        'name': approvedName.trim(),
+        'pendingName': FieldValue.delete(),
+      },
+    );
+    batch.update(
+      _firestore.collection(AppConstants.collectionUsers).doc(memberId),
+      {'name': approvedName.trim()},
+    );
+    await batch.commit();
+  }
+
+  /// Admin rejects member profile edit
+  Future<void> rejectMemberNameUpdate({
+    required String messId,
+    required String memberId,
+  }) async {
+    await _firestore
+        .collection(AppConstants.collectionMesses)
+        .doc(messId)
+        .collection(AppConstants.collectionMembers)
+        .doc(memberId)
+        .update({'pendingName': FieldValue.delete()});
+  }
+
   /// Assign a new manager for this mess
   Future<void> rotateManager({
     required String messId,
@@ -143,29 +279,6 @@ class MessRepository {
         .update({'currentManagerId': newManagerId});
   }
 
-  Future<void> updateMemberRole({
-    required String messId,
-    required String memberId,
-    required String role,
-  }) async {
-    await _firestore
-        .collection(AppConstants.collectionMesses)
-        .doc(messId)
-        .collection(AppConstants.collectionMembers)
-        .doc(memberId)
-        .update({'role': role});
-  }
-
-  Future<void> setCurrentManager({
-    required String messId,
-    required String managerId,
-  }) async {
-    await _firestore
-        .collection(AppConstants.collectionMesses)
-        .doc(messId)
-        .update({'currentManagerId': managerId});
-  }
-
   /// Delete mess and all its sub-collections
   Future<void> deleteMess({
     required String messId,
@@ -174,13 +287,11 @@ class MessRepository {
     final messRef =
         _firestore.collection(AppConstants.collectionMesses).doc(messId);
 
-    // Delete all members sub-collection docs
     final members =
         await messRef.collection(AppConstants.collectionMembers).get();
     final batch = _firestore.batch();
     for (final doc in members.docs) {
       batch.delete(doc.reference);
-      // Remove messId from each user's profile
       batch.update(
         _firestore.collection(AppConstants.collectionUsers).doc(doc.id),
         {
@@ -189,25 +300,20 @@ class MessRepository {
       );
     }
 
-    // Delete meal entries sub-collection
     final meals = await messRef.collection('mealEntries').get();
     for (final doc in meals.docs) {
       batch.delete(doc.reference);
     }
 
-    // Delete grocery entries sub-collection
     final groceries = await messRef.collection('groceryEntries').get();
     for (final doc in groceries.docs) {
       batch.delete(doc.reference);
     }
 
-    // Delete the mess document itself
     batch.delete(messRef);
-
     await batch.commit();
   }
 
-  /// Remove a single member from mess
   Future<void> removeMember({
     required String messId,
     required String memberId,

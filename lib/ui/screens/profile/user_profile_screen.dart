@@ -4,9 +4,102 @@ import 'package:go_router/go_router.dart';
 import '../../../blocs/auth/auth_bloc.dart';
 import '../../../blocs/auth/auth_state.dart';
 import '../../../blocs/auth/auth_event.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/repositories/mess_repository.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
+
+  Future<void> _showEditProfileNameDialog(
+      BuildContext context, String currentUserId, String currentName, List<String> messIds) async {
+    final nameController = TextEditingController(text: currentName);
+    final formKey = GlobalKey<FormState>();
+    final messRepo = context.read<MessRepository>();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Edit Profile Name'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Request a name change. Member name edits require Admin approval.'),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'New Full Name',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter name' : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) Navigator.pop(ctx, true);
+              },
+              child: const Text('Submit Request'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      final newName = nameController.text.trim();
+      for (final mId in messIds) {
+        await messRepo.requestMemberNameUpdate(
+          messId: mId,
+          memberId: currentUserId,
+          newName: newName,
+        );
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Name change request submitted! Waiting for Admin approval.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _linkGoogleAccount(BuildContext context) async {
+    final authRepo = context.read<AuthRepository>();
+    try {
+      await authRepo.linkGoogleAccount();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google Account bound successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Refresh Auth state
+        context.read<AuthBloc>().add(AuthCheckRequested());
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Google Linking Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +152,22 @@ class UserProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    user.name,
-                    style: theme.textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        user.name,
+                        style: theme.textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        tooltip: 'Request Name Edit',
+                        onPressed: () => _showEditProfileNameDialog(
+                            context, user.uid, user.name, user.messIds),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
                   Text(
                     user.email,
                     style: theme.textTheme.bodyLarge?.copyWith(
@@ -88,10 +191,21 @@ class UserProfileScreen extends StatelessWidget {
                         ),
                         const Divider(height: 1),
                         ListTile(
+                          leading: const Icon(Icons.g_mobiledata_rounded, size: 28),
+                          title: const Text('Google Account Binding'),
+                          subtitle: Text(user.avatarUrl != null
+                              ? 'Bound to Google Account'
+                              : 'Not Linked'),
+                          trailing: OutlinedButton(
+                            onPressed: () => _linkGoogleAccount(context),
+                            child: Text(user.avatarUrl != null ? 'Change Google' : 'Bind Google'),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
                           leading: const Icon(Icons.home_work_outlined),
                           title: const Text('Messes Joined'),
-                          subtitle: Text(
-                              '${user.messIds.length} mess(es)'),
+                          subtitle: Text('${user.messIds.length} mess(es)'),
                         ),
                         const Divider(height: 1),
                         ListTile(

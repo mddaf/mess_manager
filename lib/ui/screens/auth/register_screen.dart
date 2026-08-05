@@ -22,6 +22,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
@@ -32,12 +33,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  String? _validatePassword(String? val) {
+    if (val == null || val.isEmpty) {
+      return 'Please enter a password';
+    }
+    if (val.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(val)) {
+      return 'Must contain at least 1 uppercase letter (A-Z)';
+    }
+    if (!RegExp(r'[a-z]').hasMatch(val)) {
+      return 'Must contain at least 1 lowercase letter (a-z)';
+    }
+    if (!RegExp(r'[0-9]').hasMatch(val)) {
+      return 'Must contain at least 1 number (0-9)';
+    }
+    if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(val)) {
+      return 'Must contain at least 1 special character (!@#\$%...)';
+    }
+    return null;
+  }
+
   void _submit() {
     if (_formKey.currentState!.validate()) {
       context.read<AuthBloc>().add(
             AuthSignUpRequested(
-              name: _nameController.text,
-              email: _emailController.text,
+              name: _nameController.text.trim(),
+              email: _emailController.text.trim(),
               password: _passwordController.text,
             ),
           );
@@ -126,6 +149,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               if (val == null || val.trim().isEmpty) {
                                 return l10n.email;
                               }
+                              if (!val.contains('@') || !val.contains('.')) {
+                                return 'Enter valid email address';
+                              }
                               return null;
                             },
                           ),
@@ -147,20 +173,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 },
                               ),
                             ),
-                            validator: (val) {
-                              if (val == null || val.length < 6) {
-                                return 'Password must be at least 6 characters';
-                              }
-                              return null;
-                            },
+                            validator: _validatePassword,
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _confirmPasswordController,
-                            obscureText: _obscurePassword,
+                            obscureText: _obscureConfirmPassword,
                             decoration: InputDecoration(
                               labelText: l10n.confirmPassword,
                               prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(_obscureConfirmPassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureConfirmPassword =
+                                        !_obscureConfirmPassword;
+                                  });
+                                },
+                              ),
                             ),
                             validator: (val) {
                               if (val != _passwordController.text) {

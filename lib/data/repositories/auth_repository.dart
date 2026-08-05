@@ -96,13 +96,15 @@ class AuthRepository {
     return credential;
   }
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
+  }
+
   Future<UserCredential?> signInWithGoogle() async {
     if (kIsWeb) {
-      // On Web, signInWithPopup is standard for Firebase OAuth
       final GoogleAuthProvider googleProvider = GoogleAuthProvider();
       return await _firebaseAuth.signInWithPopup(googleProvider);
     } else {
-      // Native Android & iOS
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
@@ -114,6 +116,34 @@ class AuthRepository {
 
       return await _firebaseAuth.signInWithCredential(credential);
     }
+  }
+
+  /// Bind / Link current authenticated user with a Google Account
+  Future<void> linkGoogleAccount() async {
+    final user = currentUser;
+    if (user == null) return;
+
+    if (kIsWeb) {
+      final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+      await user.linkWithPopup(googleProvider);
+    } else {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await user.linkWithCredential(credential);
+    }
+
+    // Refresh UserProfile document with new avatar/email metadata
+    await _firestore
+        .collection(AppConstants.collectionUsers)
+        .doc(user.uid)
+        .update({
+      'avatarUrl': user.photoURL,
+    });
   }
 
   Future<void> signOut() async {

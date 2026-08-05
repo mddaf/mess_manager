@@ -14,6 +14,8 @@ abstract class Member with _$Member {
     @Default('member') String role, // admin, manager, member
     String? avatarUrl,
     @Default(0.0) double totalDeposit,
+    @Default('approved') String status, // approved, pending, rejected
+    String? pendingName,
     DateTime? joinedAt,
   }) = _Member;
 
