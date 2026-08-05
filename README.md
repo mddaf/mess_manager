@@ -1,8 +1,11 @@
 # 🍲 Mess Manager (মেস ম্যানেজার)
 
+[![CI/CD Pipeline](https://github.com/mddaf/mess_manager/actions/workflows/ci_cd.yml/badge.svg)](https://github.com/mddaf/mess_manager/actions/workflows/ci_cd.yml)
+
 A shared meal, grocery ("bazar"), and expense tracking mobile and web application built for hostels, flats, and student messes. No more manual spreadsheets or diaries — Mess Manager automates daily meal check-ins, grocery tracking with **OCR receipt scanning**, cash deposits, manager rotation, and monthly settlement calculations with real-time balance tracking.
 
-🌐 **Live Web Demo**: [https://meal-manager-844f5.web.app](https://meal-manager-844f5.web.app)
+🌐 **Live Web App**: [https://meal-manager-844f5.web.app](https://meal-manager-844f5.web.app)  
+📱 **Latest Android APK**: Available directly under [GitHub Actions Artifacts](https://github.com/mddaf/mess_manager/actions/workflows/ci_cd.yml) on every build.
 
 ---
 
@@ -23,7 +26,25 @@ A shared meal, grocery ("bazar"), and expense tracking mobile and web applicatio
 - **📈 Data Visualization**: Interactive **fl_chart** spending pie charts and breakdown summaries.
 - **🌐 Bilingual Localization**: Complete **English** and **বাংলা (Bangla)** support switchable in real time.
 - **🌙 Dark & Light Themes**: Material 3 dark/light modes with `SharedPreferences` persistence.
-- **⏰ FCM Push Notifications**: Automated daily meal-cutoff push reminders via Firebase Cloud Messaging.
+- **⚙️ Automated CI/CD & Regression Checks**: GitHub Actions workflow automatically validates code, runs tests, and compiles release APKs on every push.
+
+---
+
+## ⚙️ Automated CI/CD Pipeline
+
+The project features a full **GitHub Actions** CI/CD pipeline (`.github/workflows/ci_cd.yml`) that triggers automatically on every push or pull request to `main`:
+
+```mermaid
+graph LR
+    Push["Push / PR to main"] --> CI["1. Static Analysis & Unit Tests"]
+    CI --> CD_APK["2. Build Android Release APK"]
+    CI --> CD_WEB["3. Build Web Bundle"]
+    CD_APK --> Artifacts["Upload APK Artifact (mess-manager-android-release)"]
+```
+
+1. **🧪 Regression Checks (CI)**: Runs `flutter analyze` and `flutter test` to prevent code regressions before building binaries.
+2. **🤖 Android APK Build (CD)**: Automatically compiles `app-release.apk` with Flutter and Java 17 and stores it as a downloadable artifact.
+3. **🌐 Web Release (CD)**: Compiles the release web bundle for hosting deployment.
 
 ---
 
@@ -66,6 +87,7 @@ graph TB
 - **Backend**: Firebase Auth, Cloud Firestore, Cloud Storage, Firebase Cloud Messaging (FCM).
 - **REST Engine**: Node.js, Express, Firebase 2nd-Gen Cloud Functions.
 - **ML / OCR**: `google_mlkit_text_recognition`.
+- **CI/CD**: GitHub Actions, Java 17, `subosito/flutter-action@v2`.
 
 ---
 
@@ -73,6 +95,9 @@ graph TB
 
 ```
 mess_manager/
+├── .github/
+│   └── workflows/
+│       └── ci_cd.yml          # GitHub Actions CI/CD pipeline
 ├── l10n.yaml                  # Localization config
 ├── pubspec.yaml               # Dependencies & assets
 ├── functions/                 # Cloud Functions (Express REST API)
@@ -107,7 +132,7 @@ mess_manager/
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/mess_manager.git
+   git clone https://github.com/mddaf/mess_manager.git
    cd mess_manager
    ```
 
@@ -145,7 +170,7 @@ mess_manager/
 ## 🧪 Verification & Testing
 
 ```bash
-# Run unit & widget tests
+# Run unit & widget tests (Regression Suite)
 flutter test
 
 # Run static analysis
