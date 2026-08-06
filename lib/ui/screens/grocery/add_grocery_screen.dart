@@ -133,23 +133,25 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
     _calculateBreakdownTotal();
   }
 
-  void _calculateBreakdownTotal() {
-    if (_entryMode != 'itemized' || _itemControllers.isEmpty) return;
+  double get _calculatedItemizedTotal {
     double sum = 0.0;
-    final itemNames = <String>[];
-
     for (final item in _itemControllers) {
-      final name = item['name']?.text.trim() ?? '';
       final priceStr = item['price']?.text.trim() ?? '';
       final price = double.tryParse(priceStr) ?? 0.0;
       if (price > 0) sum += price;
+    }
+    return sum;
+  }
+
+  void _calculateBreakdownTotal() {
+    if (_entryMode != 'itemized') return;
+    final itemNames = <String>[];
+    for (final item in _itemControllers) {
+      final name = item['name']?.text.trim() ?? '';
       if (name.isNotEmpty) itemNames.add(name);
     }
-
-    setState(() {
-      _amountController.text = sum.toStringAsFixed(2);
-      _descriptionController.text = itemNames.join(', ');
-    });
+    _amountController.text = _calculatedItemizedTotal.toStringAsFixed(2);
+    _descriptionController.text = itemNames.join(', ');
   }
 
   Future<void> _pickAndScanReceipt(ImageSource source) async {
@@ -905,7 +907,11 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                                             if (v == null || v.trim().isEmpty) return 'Required';
                                             return null;
                                           },
-                                          onChanged: (_) => _calculateBreakdownTotal(),
+                                          onChanged: (_) {
+                                            setState(() {
+                                              _calculateBreakdownTotal();
+                                            });
+                                          },
                                         ),
                                       ),
                                       const SizedBox(width: 8),
@@ -926,7 +932,11 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                                             if (p == null || p <= 0) return 'Must be > 0';
                                             return null;
                                           },
-                                          onChanged: (_) => _calculateBreakdownTotal(),
+                                          onChanged: (_) {
+                                            setState(() {
+                                              _calculateBreakdownTotal();
+                                            });
+                                          },
                                         ),
                                       ),
                                       IconButton(
@@ -962,7 +972,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                                   ],
                                 ),
                                 Text(
-                                  '৳${_amountController.text.isEmpty ? "0.00" : _amountController.text}',
+                                  '৳${_calculatedItemizedTotal.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                       fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
                                 ),
