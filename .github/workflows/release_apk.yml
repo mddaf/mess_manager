@@ -6,10 +6,13 @@ on:
       release_title:
         description: 'Release Title (e.g., Meal Manager v1.0.1)'
         required: true
-        default: 'Meal Manager Release'
+        default: 'Meal Manager v1.0.1'
   push:
     tags:
       - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build-apk:
@@ -29,35 +32,49 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.8'
           channel: 'stable'
           cache: true
 
       - name: Get Dependencies
         run: flutter pub get
 
+      - name: Generate Code & Localizations
+        run: |
+          flutter gen-l10n
+          dart run build_runner build --delete-conflicting-outputs
+
       - name: Run Tests
         run: flutter test
 
       - name: Build Release APK
-        run: flutter build apk --release --split-per-abi
-
-      - name: Build Universal APK
         run: flutter build apk --release
 
       - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: meal-manager-release-apks
-          path: build/app/outputs/flutter-apk/*.apk
+          name: meal-manager-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
+          tag_name: ${{ github.ref_name }}
           name: ${{ github.event.inputs.release_title || github.ref_name }}
           draft: false
           prerelease: false
-          files: build/app/outputs/flutter-apk/*.apk
+          body: |
+            ## 🍱 Meal Manager Release (${{ github.ref_name }})
+
+            ### ✨ Key Features Included:
+            - **🍱 Real-Time Meal Check-in**: Synchronized breakfast, lunch, dinner toggles across flatmates.
+            - **🛒 Grocery Expense Logging & OCR**: Smart receipt scanner with Google ML Kit text extraction (Bangla & English).
+            - **💳 Payment Funding Sources**: Mess Fund, Purchaser Pocket, and Split payment tracking.
+            - **💵 Cash & Bank Deposit Records**: Track member contributions automatically with dues protection.
+            - **📊 Automated Settlement Calculations**: Meal rate formula, carried dues rollover, and archived month history.
+
+            ---
+            🌐 **Live Web Version**: [https://meal-manager-844f5.web.app](https://meal-manager-844f5.web.app)
+          files: build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
