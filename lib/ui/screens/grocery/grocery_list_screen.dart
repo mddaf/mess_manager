@@ -9,7 +9,9 @@ import '../../../blocs/grocery/grocery_bloc.dart';
 import '../../../blocs/grocery/grocery_state.dart';
 import '../../../core/extensions.dart';
 import '../../../data/repositories/grocery_repository.dart';
+import '../../../data/repositories/deposit_repository.dart';
 import '../../../models/grocery_entry.dart';
+import '../../../models/deposit.dart';
 import 'add_grocery_screen.dart';
 import 'grocery_details_modal.dart';
 
@@ -56,34 +58,85 @@ class GroceryListScreen extends StatelessWidget {
             .where((e) => e.status == 'approved')
             .fold<double>(0.0, (sum, e) => sum + e.amount);
 
-        return Scaffold(
-          body: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                color: theme.colorScheme.primaryContainer,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      l10n.totalGrocery,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
+        final depositRepo = context.read<DepositRepository>();
+
+        return StreamBuilder<List<Deposit>>(
+          stream: depositRepo.watchMonthlyDeposits(
+            messId: messId,
+            monthPrefix: monthStr,
+          ),
+          builder: (context, depSnap) {
+            final deposits = depSnap.data ?? [];
+            final totalDeposits = deposits
+                .where((d) => d.status == 'approved')
+                .fold<double>(0.0, (sum, d) => sum + d.amount);
+            final remainingBalance = totalDeposits - approvedTotal;
+
+            return Scaffold(
+              body: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    color: theme.colorScheme.primaryContainer,
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              l10n.totalGrocery,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                            Text(
+                              approvedTotal.toCurrency(),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            Column(
+                              children: [
+                                Text('Total Deposits',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8))),
+                                const SizedBox(height: 2),
+                                Text(totalDeposits.toCurrency(),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Text('Remaining Cash',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8))),
+                                const SizedBox(height: 2),
+                                Text(
+                                  remainingBalance.toCurrency(),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: remainingBalance >= 0 ? Colors.green : Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    Text(
-                      approvedTotal.toCurrency(),
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
               Expanded(
                 child: entries.isEmpty
                     ? Center(
@@ -221,5 +274,7 @@ class GroceryListScreen extends StatelessWidget {
         );
       },
     );
+  },
+);
   }
 }

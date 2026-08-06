@@ -149,6 +149,7 @@ class _MessDashboardScreenState extends State<MessDashboardScreen> {
         if (groceryState is GroceryLoaded) {
           groceries = groceryState.entries.where((g) => g.status == 'approved').toList();
         }
+        final double totalMessDeposits = approvedDeposits.fold(0.0, (sum, d) => sum + d.amount);
         final double totalGrocerySpend = groceries.fold(0.0, (sum, g) => sum + g.amount);
 
         final myGroceries = groceries.where((g) => g.purchasedBy == currentUserId).toList();
@@ -407,6 +408,112 @@ class _MessDashboardScreenState extends State<MessDashboardScreen> {
                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
+
+                // ── Mess Financial Balance Overview ──────────────────────
+                Card(
+                  elevation: 2,
+                  color: theme.colorScheme.primaryContainer,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '🏦 Mess Financial Cash Balance',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: (totalMessDeposits - totalGrocerySpend) >= 0
+                                    ? Colors.green.shade100
+                                    : Colors.red.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                (totalMessDeposits - totalGrocerySpend) >= 0
+                                    ? 'Fund Surplus 🟢'
+                                    : 'Fund Deficit 🔴',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: (totalMessDeposits - totalGrocerySpend) >= 0
+                                      ? Colors.green.shade900
+                                      : Colors.red.shade900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            Column(
+                              children: [
+                                Text('Total Deposits',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                                    )),
+                                const SizedBox(height: 2),
+                                Text(
+                                  totalMessDeposits.toCurrency(),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Text('Total Bazar Spent',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                                    )),
+                                const SizedBox(height: 2),
+                                Text(
+                                  totalGrocerySpend.toCurrency(),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16, color: Colors.purple),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Text('Remaining Cash Balance',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                                    )),
+                                const SizedBox(height: 2),
+                                Text(
+                                  (totalMessDeposits - totalGrocerySpend).toCurrency(),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: (totalMessDeposits - totalGrocerySpend) >= 0
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
 
                 Row(
                   children: [
