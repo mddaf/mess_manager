@@ -87,7 +87,10 @@ class _MessSetupScreenState extends State<MessSetupScreen>
         userEmail: auth.user.email,
       );
       if (mounted) {
+        context.read<AuthBloc>().add(AuthCheckRequested());
         context.read<MessBloc>().add(WatchMessRequested(mess.id));
+        setState(() => _loading = false);
+        context.go('/home?messId=${mess.id}');
       }
     } catch (e) {
       if (mounted) {
@@ -130,7 +133,10 @@ class _MessSetupScreenState extends State<MessSetupScreen>
         userEmail: auth.user.email,
       );
       if (mess != null && mounted) {
+        context.read<AuthBloc>().add(AuthCheckRequested());
         context.read<MessBloc>().add(WatchMessRequested(mess.id));
+        setState(() => _loading = false);
+        context.go('/home?messId=${mess.id}');
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
