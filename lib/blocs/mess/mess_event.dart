@@ -51,3 +51,7 @@ class WatchMessRequested extends MessEvent {
   @override
   List<Object?> get props => [messId];
 }
+
+class ResetMessRequested extends MessEvent {
+  const ResetMessRequested();
+}

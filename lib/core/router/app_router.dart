@@ -86,12 +86,26 @@ GoRouter buildAppRouter(AuthBloc authBloc) {
           return loc == '/verify-email' ? null : '/verify-email';
         }
 
+        // Check if user is associated with any mess
+        final hasMess = authState.user.messIds.isNotEmpty;
+
+        // Requirement: Mess Setup/Creation page (/setup) can ONLY be accessed when user is NOT associated with any mess
+        if (hasMess && loc == '/setup') {
+          return '/home?messId=${authState.user.messIds.first}';
+        }
+
+        if (!hasMess && loc == '/home') {
+          return '/setup';
+        }
+
         // Verified: don't stay on splash, auth, or verify pages
         final isPublicRoute = loc == '/splash' ||
             loc == '/login' ||
             loc == '/register' ||
             loc == '/verify-email';
-        if (isPublicRoute) return '/setup';
+        if (isPublicRoute) {
+          return hasMess ? '/home?messId=${authState.user.messIds.first}' : '/setup';
+        }
       }
 
       return null;

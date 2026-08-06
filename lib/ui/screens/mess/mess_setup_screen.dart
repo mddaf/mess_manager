@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../blocs/auth/auth_bloc.dart';
+import '../../../blocs/auth/auth_event.dart';
 import '../../../blocs/auth/auth_state.dart';
 import '../../../blocs/mess/mess_bloc.dart';
 import '../../../blocs/mess/mess_event.dart';
@@ -163,13 +164,77 @@ class _MessSetupScreenState extends State<MessSetupScreen>
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(l10n.appTitle),
-          actions: const [LanguageSwitcherButton(), ThemeToggleIconButton()],
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: const Text('🍱', style: TextStyle(fontSize: 18)),
+              ),
+              const SizedBox(width: 10),
+              Text(l10n.appTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ],
+          ),
+          actions: [
+            const LanguageSwitcherButton(),
+            const ThemeToggleIconButton(),
+            IconButton(
+              icon: const Icon(Icons.account_circle_rounded),
+              tooltip: 'My Profile',
+              onPressed: () => context.push('/profile'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout_rounded),
+              tooltip: 'Sign Out',
+              onPressed: () => context.read<AuthBloc>().add(AuthSignOutRequested()),
+            ),
+          ],
           bottom: TabBar(
             controller: _tabController,
             tabs: const [
               Tab(icon: Icon(Icons.add_home_rounded), text: 'Create Mess'),
               Tab(icon: Icon(Icons.group_add_rounded), text: 'Join Mess'),
+            ],
+          ),
+        ),
+        drawer: Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              UserAccountsDrawerHeader(
+                decoration: BoxDecoration(color: theme.colorScheme.primaryContainer),
+                accountName: Text(
+                  'Welcome to ${l10n.appTitle}',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onPrimaryContainer),
+                ),
+                accountEmail: Text(
+                  _authState is Authenticated ? (_authState as Authenticated).user.email : '',
+                  style: TextStyle(color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8)),
+                ),
+                currentAccountPicture: const CircleAvatar(
+                  child: Text('🍱', style: TextStyle(fontSize: 28)),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.person_rounded),
+                title: const Text('My Profile'),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/profile');
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.logout_rounded, color: Colors.red),
+                title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.read<AuthBloc>().add(AuthSignOutRequested());
+                },
+              ),
             ],
           ),
         ),

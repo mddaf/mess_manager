@@ -21,6 +21,7 @@ class MessBloc extends Bloc<MessEvent, MessState> {
     on<CreateMessRequested>(_onCreateMess);
     on<JoinMessRequested>(_onJoinMess);
     on<WatchMessRequested>(_onWatchMess);
+    on<ResetMessRequested>(_onResetMess);
     on<_MessUpdated>(_onMessUpdated);
     on<_MembersUpdated>(_onMembersUpdated);
   }
@@ -95,6 +96,17 @@ class MessBloc extends Bloc<MessEvent, MessState> {
       },
       onError: (_) => add(_MembersUpdated(const [])),
     );
+  }
+
+  Future<void> _onResetMess(
+    ResetMessRequested event,
+    Emitter<MessState> emit,
+  ) async {
+    await _messSub?.cancel();
+    await _membersSub?.cancel();
+    _currentMess = null;
+    _currentMembers = [];
+    emit(MessInitial());
   }
 
   void _onMessUpdated(_MessUpdated event, Emitter<MessState> emit) {

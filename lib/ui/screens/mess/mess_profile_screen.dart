@@ -8,6 +8,7 @@ import '../../../blocs/auth/auth_bloc.dart';
 import '../../../blocs/auth/auth_event.dart';
 import '../../../blocs/auth/auth_state.dart';
 import '../../../blocs/mess/mess_bloc.dart';
+import '../../../blocs/mess/mess_event.dart';
 import '../../../blocs/mess/mess_state.dart';
 import '../../../data/repositories/mess_repository.dart';
 import '../../../models/member.dart';
@@ -185,9 +186,9 @@ class MessProfileScreen extends StatelessWidget {
         senderName: senderName,
       );
 
-      final subjectRaw = 'You are invited to join $messName on Mess Manager';
+      final subjectRaw = 'You are invited to join $messName on Meal Manager';
       final bodyRaw =
-          'Hi,\n\n$senderName invited you to join $messName on Mess Manager.\n\n'
+          'Hi,\n\n$senderName invited you to join $messName on Meal Manager.\n\n'
           'Invite Code: $code\n'
           'Direct Link: $link\n\n'
           'This invite is bound to $targetEmail.';
@@ -403,9 +404,9 @@ class MessProfileScreen extends StatelessWidget {
       try {
         await repo.deleteMess(messId: messId, userId: userId);
         if (!context.mounted) return;
-        // Reload auth profile (clears messIds) before navigating to prevent back-loop
+        context.read<MessBloc>().add(const ResetMessRequested());
         authBloc.add(AuthCheckRequested());
-        await Future.delayed(const Duration(milliseconds: 400));
+        await Future.delayed(const Duration(milliseconds: 300));
         if (context.mounted) router.go('/setup');
       } catch (e) {
         if (!context.mounted) return;
@@ -524,8 +525,9 @@ class MessProfileScreen extends StatelessWidget {
       try {
         await repo.leaveMess(messId: messId, userId: currentUserId);
         if (!context.mounted) return;
+        context.read<MessBloc>().add(const ResetMessRequested());
         authBloc.add(AuthCheckRequested());
-        await Future.delayed(const Duration(milliseconds: 400));
+        await Future.delayed(const Duration(milliseconds: 300));
         if (context.mounted) router.go('/setup');
       } catch (e) {
         if (!context.mounted) return;

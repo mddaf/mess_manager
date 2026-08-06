@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String appName = 'Mess Manager';
+  static const String appName = 'Meal Manager';
 
   // Firestore Collections
   static const String collectionUsers = 'users';

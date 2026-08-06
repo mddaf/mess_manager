@@ -2,26 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primarySeed = Color(0xFF1B5E20); // Deep Forest Green
-  static const Color accentColor = Color(0xFF00897B); // Teal accent
+  static const Color primarySeed = Color(0xFF0D9488); // Modern Teal Green
+  static const Color accentColor = Color(0xFF10B981); // Emerald accent
 
   static ThemeData lightTheme() {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: primarySeed,
       brightness: Brightness.light,
-      primary: const Color(0xFF2E7D32),
-      secondary: accentColor,
-      surface: const Color(0xFFF8F9FA),
+      primary: const Color(0xFF0D9488),
+      primaryContainer: const Color(0xFFCCFBF1),
+      onPrimaryContainer: const Color(0xFF115E59),
+      secondary: const Color(0xFF10B981),
+      secondaryContainer: const Color(0xFFD1FAE5),
+      onSecondaryContainer: const Color(0xFF065F46),
+      surface: const Color(0xFFF8FAFC),
+      onSurface: const Color(0xFF0F172A),
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: const Color(0xFFF4F6F8),
+      scaffoldBackgroundColor: const Color(0xFFF1F5F9),
       textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
       appBarTheme: AppBarTheme(
-        centerTitle: true,
+        centerTitle: false,
         elevation: 0,
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
@@ -33,14 +38,17 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 1.5,
+        shadowColor: Colors.black.withValues(alpha: 0.05),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: const Color(0xFFE2E8F0).withValues(alpha: 0.5)),
         ),
         color: Colors.white,
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colorScheme.primary,
         foregroundColor: Colors.white,
+        elevation: 3,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -50,11 +58,11 @@ class AppTheme {
         fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -69,19 +77,24 @@ class AppTheme {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: primarySeed,
       brightness: Brightness.dark,
-      primary: const Color(0xFF81C784),
-      secondary: const Color(0xFF4DB6AC),
-      surface: const Color(0xFF1E261E),
+      primary: const Color(0xFF2DD4BF),
+      primaryContainer: const Color(0xFF115E59),
+      onPrimaryContainer: const Color(0xFFCCFBF1),
+      secondary: const Color(0xFF34D399),
+      secondaryContainer: const Color(0xFF065F46),
+      onSecondaryContainer: const Color(0xFFD1FAE5),
+      surface: const Color(0xFF1E293B),
+      onSurface: const Color(0xFFF8FAFC),
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF121612),
+      scaffoldBackgroundColor: const Color(0xFF0F172A),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
       appBarTheme: AppBarTheme(
-        centerTitle: true,
+        centerTitle: false,
         elevation: 0,
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
@@ -93,28 +106,31 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 2,
+        shadowColor: Colors.black.withValues(alpha: 0.3),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: const Color(0xFF334155).withValues(alpha: 0.4)),
         ),
-        color: const Color(0xFF1E261E),
+        color: const Color(0xFF1E293B),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colorScheme.primary,
-        foregroundColor: const Color(0xFF121612),
+        foregroundColor: const Color(0xFF0F172A),
+        elevation: 3,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF263026),
+        fillColor: const Color(0xFF334155),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade800),
+          borderSide: const BorderSide(color: Color(0xFF475569)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade800),
+          borderSide: const BorderSide(color: Color(0xFF475569)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

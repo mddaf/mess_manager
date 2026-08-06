@@ -108,7 +108,7 @@ class _MessManagerAppState extends State<MessManagerApp> {
               return BlocBuilder<LocaleBloc, LocaleState>(
                 builder: (context, localeState) {
                   return MaterialApp.router(
-                    title: 'Mess Manager',
+                    title: 'Meal Manager',
                     debugShowCheckedModeBanner: false,
                     theme: AppTheme.lightTheme(),
                     darkTheme: AppTheme.darkTheme(),

@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// The title of the application
   ///
   /// In en, this message translates to:
-  /// **'Mess Manager'**
+  /// **'Meal Manager'**
   String get appTitle;
 
   /// No description provided for @login.

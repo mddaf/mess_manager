@@ -324,7 +324,10 @@ class MessRepository {
     for (final doc in members.docs) {
       userBatch.update(
         _firestore.collection(AppConstants.collectionUsers).doc(doc.id),
-        {'messIds': FieldValue.arrayRemove([messId])},
+        {
+          'messIds': FieldValue.arrayRemove([messId]),
+          'currentMessId': '',
+        },
       );
     }
     await userBatch.commit();
@@ -548,7 +551,8 @@ class MessRepository {
     batch.update(
       _firestore.collection(AppConstants.collectionUsers).doc(memberId),
       {
-        'messIds': FieldValue.arrayRemove([messId])
+        'messIds': FieldValue.arrayRemove([messId]),
+        'currentMessId': '',
       },
     );
     await batch.commit();
