@@ -211,6 +211,35 @@ class GroceryDetailsModal extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
+          // Note Section
+          if (entry.note.isNotEmpty) ...[
+            Card(
+              elevation: 1,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.sticky_note_2_rounded, color: Colors.amber),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Note / Remarks',
+                              style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 2),
+                          Text(entry.note, style: const TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // Payment Funding Source Details Card
           Card(
             elevation: 1,

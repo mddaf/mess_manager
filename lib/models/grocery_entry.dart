@@ -13,6 +13,7 @@ abstract class GroceryEntry with _$GroceryEntry {
     required String purchaserName,
     required String description,
     required double amount,
+    @Default('') String note,
     @Default('mess_fund') String paymentSource, // mess_fund, member_pocket, split
     @Default(0.0) double amountFromMess,
     @Default(0.0) double amountFromMember,

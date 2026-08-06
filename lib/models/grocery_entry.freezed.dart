@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$GroceryEntry {
 
- String get id; String get purchasedBy; String get purchaserName; String get description; double get amount; String get paymentSource;// mess_fund, member_pocket, split
+ String get id; String get purchasedBy; String get purchaserName; String get description; double get amount; String get note; String get paymentSource;// mess_fund, member_pocket, split
  double get amountFromMess; double get amountFromMember; double? get ocrExtractedAmount; String get date;// YYYY-MM-DD
  String? get receiptUrl; List<GroceryItem> get items; String get status;// approved, pending, rejected
  DateTime? get createdAt;
@@ -31,16 +31,16 @@ $GroceryEntryCopyWith<GroceryEntry> get copyWith => _$GroceryEntryCopyWithImpl<G
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GroceryEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.purchasedBy, purchasedBy) || other.purchasedBy == purchasedBy)&&(identical(other.purchaserName, purchaserName) || other.purchaserName == purchaserName)&&(identical(other.description, description) || other.description == description)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.paymentSource, paymentSource) || other.paymentSource == paymentSource)&&(identical(other.amountFromMess, amountFromMess) || other.amountFromMess == amountFromMess)&&(identical(other.amountFromMember, amountFromMember) || other.amountFromMember == amountFromMember)&&(identical(other.ocrExtractedAmount, ocrExtractedAmount) || other.ocrExtractedAmount == ocrExtractedAmount)&&(identical(other.date, date) || other.date == date)&&(identical(other.receiptUrl, receiptUrl) || other.receiptUrl == receiptUrl)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GroceryEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.purchasedBy, purchasedBy) || other.purchasedBy == purchasedBy)&&(identical(other.purchaserName, purchaserName) || other.purchaserName == purchaserName)&&(identical(other.description, description) || other.description == description)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.note, note) || other.note == note)&&(identical(other.paymentSource, paymentSource) || other.paymentSource == paymentSource)&&(identical(other.amountFromMess, amountFromMess) || other.amountFromMess == amountFromMess)&&(identical(other.amountFromMember, amountFromMember) || other.amountFromMember == amountFromMember)&&(identical(other.ocrExtractedAmount, ocrExtractedAmount) || other.ocrExtractedAmount == ocrExtractedAmount)&&(identical(other.date, date) || other.date == date)&&(identical(other.receiptUrl, receiptUrl) || other.receiptUrl == receiptUrl)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,purchasedBy,purchaserName,description,amount,paymentSource,amountFromMess,amountFromMember,ocrExtractedAmount,date,receiptUrl,const DeepCollectionEquality().hash(items),status,createdAt);
+int get hashCode => Object.hash(runtimeType,id,purchasedBy,purchaserName,description,amount,note,paymentSource,amountFromMess,amountFromMember,ocrExtractedAmount,date,receiptUrl,const DeepCollectionEquality().hash(items),status,createdAt);
 
 @override
 String toString() {
-  return 'GroceryEntry(id: $id, purchasedBy: $purchasedBy, purchaserName: $purchaserName, description: $description, amount: $amount, paymentSource: $paymentSource, amountFromMess: $amountFromMess, amountFromMember: $amountFromMember, ocrExtractedAmount: $ocrExtractedAmount, date: $date, receiptUrl: $receiptUrl, items: $items, status: $status, createdAt: $createdAt)';
+  return 'GroceryEntry(id: $id, purchasedBy: $purchasedBy, purchaserName: $purchaserName, description: $description, amount: $amount, note: $note, paymentSource: $paymentSource, amountFromMess: $amountFromMess, amountFromMember: $amountFromMember, ocrExtractedAmount: $ocrExtractedAmount, date: $date, receiptUrl: $receiptUrl, items: $items, status: $status, createdAt: $createdAt)';
 }
 
 
@@ -51,7 +51,7 @@ abstract mixin class $GroceryEntryCopyWith<$Res>  {
   factory $GroceryEntryCopyWith(GroceryEntry value, $Res Function(GroceryEntry) _then) = _$GroceryEntryCopyWithImpl;
 @useResult
 $Res call({
- String id, String purchasedBy, String purchaserName, String description, double amount, String paymentSource, double amountFromMess, double amountFromMember, double? ocrExtractedAmount, String date, String? receiptUrl, List<GroceryItem> items, String status, DateTime? createdAt
+ String id, String purchasedBy, String purchaserName, String description, double amount, String note, String paymentSource, double amountFromMess, double amountFromMember, double? ocrExtractedAmount, String date, String? receiptUrl, List<GroceryItem> items, String status, DateTime? createdAt
 });
 
 
@@ -68,14 +68,15 @@ class _$GroceryEntryCopyWithImpl<$Res>
 
 /// Create a copy of GroceryEntry
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? purchasedBy = null,Object? purchaserName = null,Object? description = null,Object? amount = null,Object? paymentSource = null,Object? amountFromMess = null,Object? amountFromMember = null,Object? ocrExtractedAmount = freezed,Object? date = null,Object? receiptUrl = freezed,Object? items = null,Object? status = null,Object? createdAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? purchasedBy = null,Object? purchaserName = null,Object? description = null,Object? amount = null,Object? note = null,Object? paymentSource = null,Object? amountFromMess = null,Object? amountFromMember = null,Object? ocrExtractedAmount = freezed,Object? date = null,Object? receiptUrl = freezed,Object? items = null,Object? status = null,Object? createdAt = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,purchasedBy: null == purchasedBy ? _self.purchasedBy : purchasedBy // ignore: cast_nullable_to_non_nullable
 as String,purchaserName: null == purchaserName ? _self.purchaserName : purchaserName // ignore: cast_nullable_to_non_nullable
 as String,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
-as double,paymentSource: null == paymentSource ? _self.paymentSource : paymentSource // ignore: cast_nullable_to_non_nullable
+as double,note: null == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String,paymentSource: null == paymentSource ? _self.paymentSource : paymentSource // ignore: cast_nullable_to_non_nullable
 as String,amountFromMess: null == amountFromMess ? _self.amountFromMess : amountFromMess // ignore: cast_nullable_to_non_nullable
 as double,amountFromMember: null == amountFromMember ? _self.amountFromMember : amountFromMember // ignore: cast_nullable_to_non_nullable
 as double,ocrExtractedAmount: freezed == ocrExtractedAmount ? _self.ocrExtractedAmount : ocrExtractedAmount // ignore: cast_nullable_to_non_nullable
@@ -169,10 +170,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String purchasedBy,  String purchaserName,  String description,  double amount,  String paymentSource,  double amountFromMess,  double amountFromMember,  double? ocrExtractedAmount,  String date,  String? receiptUrl,  List<GroceryItem> items,  String status,  DateTime? createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String purchasedBy,  String purchaserName,  String description,  double amount,  String note,  String paymentSource,  double amountFromMess,  double amountFromMember,  double? ocrExtractedAmount,  String date,  String? receiptUrl,  List<GroceryItem> items,  String status,  DateTime? createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _GroceryEntry() when $default != null:
-return $default(_that.id,_that.purchasedBy,_that.purchaserName,_that.description,_that.amount,_that.paymentSource,_that.amountFromMess,_that.amountFromMember,_that.ocrExtractedAmount,_that.date,_that.receiptUrl,_that.items,_that.status,_that.createdAt);case _:
+return $default(_that.id,_that.purchasedBy,_that.purchaserName,_that.description,_that.amount,_that.note,_that.paymentSource,_that.amountFromMess,_that.amountFromMember,_that.ocrExtractedAmount,_that.date,_that.receiptUrl,_that.items,_that.status,_that.createdAt);case _:
   return orElse();
 
 }
@@ -190,10 +191,10 @@ return $default(_that.id,_that.purchasedBy,_that.purchaserName,_that.description
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String purchasedBy,  String purchaserName,  String description,  double amount,  String paymentSource,  double amountFromMess,  double amountFromMember,  double? ocrExtractedAmount,  String date,  String? receiptUrl,  List<GroceryItem> items,  String status,  DateTime? createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String purchasedBy,  String purchaserName,  String description,  double amount,  String note,  String paymentSource,  double amountFromMess,  double amountFromMember,  double? ocrExtractedAmount,  String date,  String? receiptUrl,  List<GroceryItem> items,  String status,  DateTime? createdAt)  $default,) {final _that = this;
 switch (_that) {
 case _GroceryEntry():
-return $default(_that.id,_that.purchasedBy,_that.purchaserName,_that.description,_that.amount,_that.paymentSource,_that.amountFromMess,_that.amountFromMember,_that.ocrExtractedAmount,_that.date,_that.receiptUrl,_that.items,_that.status,_that.createdAt);case _:
+return $default(_that.id,_that.purchasedBy,_that.purchaserName,_that.description,_that.amount,_that.note,_that.paymentSource,_that.amountFromMess,_that.amountFromMember,_that.ocrExtractedAmount,_that.date,_that.receiptUrl,_that.items,_that.status,_that.createdAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -210,10 +211,10 @@ return $default(_that.id,_that.purchasedBy,_that.purchaserName,_that.description
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String purchasedBy,  String purchaserName,  String description,  double amount,  String paymentSource,  double amountFromMess,  double amountFromMember,  double? ocrExtractedAmount,  String date,  String? receiptUrl,  List<GroceryItem> items,  String status,  DateTime? createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String purchasedBy,  String purchaserName,  String description,  double amount,  String note,  String paymentSource,  double amountFromMess,  double amountFromMember,  double? ocrExtractedAmount,  String date,  String? receiptUrl,  List<GroceryItem> items,  String status,  DateTime? createdAt)?  $default,) {final _that = this;
 switch (_that) {
 case _GroceryEntry() when $default != null:
-return $default(_that.id,_that.purchasedBy,_that.purchaserName,_that.description,_that.amount,_that.paymentSource,_that.amountFromMess,_that.amountFromMember,_that.ocrExtractedAmount,_that.date,_that.receiptUrl,_that.items,_that.status,_that.createdAt);case _:
+return $default(_that.id,_that.purchasedBy,_that.purchaserName,_that.description,_that.amount,_that.note,_that.paymentSource,_that.amountFromMess,_that.amountFromMember,_that.ocrExtractedAmount,_that.date,_that.receiptUrl,_that.items,_that.status,_that.createdAt);case _:
   return null;
 
 }
@@ -225,7 +226,7 @@ return $default(_that.id,_that.purchasedBy,_that.purchaserName,_that.description
 @JsonSerializable()
 
 class _GroceryEntry implements GroceryEntry {
-  const _GroceryEntry({required this.id, required this.purchasedBy, required this.purchaserName, required this.description, required this.amount, this.paymentSource = 'mess_fund', this.amountFromMess = 0.0, this.amountFromMember = 0.0, this.ocrExtractedAmount, required this.date, this.receiptUrl, final  List<GroceryItem> items = const [], this.status = 'approved', this.createdAt}): _items = items;
+  const _GroceryEntry({required this.id, required this.purchasedBy, required this.purchaserName, required this.description, required this.amount, this.note = '', this.paymentSource = 'mess_fund', this.amountFromMess = 0.0, this.amountFromMember = 0.0, this.ocrExtractedAmount, required this.date, this.receiptUrl, final  List<GroceryItem> items = const [], this.status = 'approved', this.createdAt}): _items = items;
   factory _GroceryEntry.fromJson(Map<String, dynamic> json) => _$GroceryEntryFromJson(json);
 
 @override final  String id;
@@ -233,6 +234,7 @@ class _GroceryEntry implements GroceryEntry {
 @override final  String purchaserName;
 @override final  String description;
 @override final  double amount;
+@override@JsonKey() final  String note;
 @override@JsonKey() final  String paymentSource;
 // mess_fund, member_pocket, split
 @override@JsonKey() final  double amountFromMess;
@@ -265,16 +267,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GroceryEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.purchasedBy, purchasedBy) || other.purchasedBy == purchasedBy)&&(identical(other.purchaserName, purchaserName) || other.purchaserName == purchaserName)&&(identical(other.description, description) || other.description == description)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.paymentSource, paymentSource) || other.paymentSource == paymentSource)&&(identical(other.amountFromMess, amountFromMess) || other.amountFromMess == amountFromMess)&&(identical(other.amountFromMember, amountFromMember) || other.amountFromMember == amountFromMember)&&(identical(other.ocrExtractedAmount, ocrExtractedAmount) || other.ocrExtractedAmount == ocrExtractedAmount)&&(identical(other.date, date) || other.date == date)&&(identical(other.receiptUrl, receiptUrl) || other.receiptUrl == receiptUrl)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GroceryEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.purchasedBy, purchasedBy) || other.purchasedBy == purchasedBy)&&(identical(other.purchaserName, purchaserName) || other.purchaserName == purchaserName)&&(identical(other.description, description) || other.description == description)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.note, note) || other.note == note)&&(identical(other.paymentSource, paymentSource) || other.paymentSource == paymentSource)&&(identical(other.amountFromMess, amountFromMess) || other.amountFromMess == amountFromMess)&&(identical(other.amountFromMember, amountFromMember) || other.amountFromMember == amountFromMember)&&(identical(other.ocrExtractedAmount, ocrExtractedAmount) || other.ocrExtractedAmount == ocrExtractedAmount)&&(identical(other.date, date) || other.date == date)&&(identical(other.receiptUrl, receiptUrl) || other.receiptUrl == receiptUrl)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,purchasedBy,purchaserName,description,amount,paymentSource,amountFromMess,amountFromMember,ocrExtractedAmount,date,receiptUrl,const DeepCollectionEquality().hash(_items),status,createdAt);
+int get hashCode => Object.hash(runtimeType,id,purchasedBy,purchaserName,description,amount,note,paymentSource,amountFromMess,amountFromMember,ocrExtractedAmount,date,receiptUrl,const DeepCollectionEquality().hash(_items),status,createdAt);
 
 @override
 String toString() {
-  return 'GroceryEntry(id: $id, purchasedBy: $purchasedBy, purchaserName: $purchaserName, description: $description, amount: $amount, paymentSource: $paymentSource, amountFromMess: $amountFromMess, amountFromMember: $amountFromMember, ocrExtractedAmount: $ocrExtractedAmount, date: $date, receiptUrl: $receiptUrl, items: $items, status: $status, createdAt: $createdAt)';
+  return 'GroceryEntry(id: $id, purchasedBy: $purchasedBy, purchaserName: $purchaserName, description: $description, amount: $amount, note: $note, paymentSource: $paymentSource, amountFromMess: $amountFromMess, amountFromMember: $amountFromMember, ocrExtractedAmount: $ocrExtractedAmount, date: $date, receiptUrl: $receiptUrl, items: $items, status: $status, createdAt: $createdAt)';
 }
 
 
@@ -285,7 +287,7 @@ abstract mixin class _$GroceryEntryCopyWith<$Res> implements $GroceryEntryCopyWi
   factory _$GroceryEntryCopyWith(_GroceryEntry value, $Res Function(_GroceryEntry) _then) = __$GroceryEntryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String purchasedBy, String purchaserName, String description, double amount, String paymentSource, double amountFromMess, double amountFromMember, double? ocrExtractedAmount, String date, String? receiptUrl, List<GroceryItem> items, String status, DateTime? createdAt
+ String id, String purchasedBy, String purchaserName, String description, double amount, String note, String paymentSource, double amountFromMess, double amountFromMember, double? ocrExtractedAmount, String date, String? receiptUrl, List<GroceryItem> items, String status, DateTime? createdAt
 });
 
 
@@ -302,14 +304,15 @@ class __$GroceryEntryCopyWithImpl<$Res>
 
 /// Create a copy of GroceryEntry
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? purchasedBy = null,Object? purchaserName = null,Object? description = null,Object? amount = null,Object? paymentSource = null,Object? amountFromMess = null,Object? amountFromMember = null,Object? ocrExtractedAmount = freezed,Object? date = null,Object? receiptUrl = freezed,Object? items = null,Object? status = null,Object? createdAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? purchasedBy = null,Object? purchaserName = null,Object? description = null,Object? amount = null,Object? note = null,Object? paymentSource = null,Object? amountFromMess = null,Object? amountFromMember = null,Object? ocrExtractedAmount = freezed,Object? date = null,Object? receiptUrl = freezed,Object? items = null,Object? status = null,Object? createdAt = freezed,}) {
   return _then(_GroceryEntry(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,purchasedBy: null == purchasedBy ? _self.purchasedBy : purchasedBy // ignore: cast_nullable_to_non_nullable
 as String,purchaserName: null == purchaserName ? _self.purchaserName : purchaserName // ignore: cast_nullable_to_non_nullable
 as String,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
-as double,paymentSource: null == paymentSource ? _self.paymentSource : paymentSource // ignore: cast_nullable_to_non_nullable
+as double,note: null == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String,paymentSource: null == paymentSource ? _self.paymentSource : paymentSource // ignore: cast_nullable_to_non_nullable
 as String,amountFromMess: null == amountFromMess ? _self.amountFromMess : amountFromMess // ignore: cast_nullable_to_non_nullable
 as double,amountFromMember: null == amountFromMember ? _self.amountFromMember : amountFromMember // ignore: cast_nullable_to_non_nullable
 as double,ocrExtractedAmount: freezed == ocrExtractedAmount ? _self.ocrExtractedAmount : ocrExtractedAmount // ignore: cast_nullable_to_non_nullable

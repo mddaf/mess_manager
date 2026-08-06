@@ -33,11 +33,12 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
+  final _noteController = TextEditingController();
   final _amountFromMessController = TextEditingController();
   final _amountFromMemberController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
 
-  // Mode Selection: 'quick' (Total Amount & Description) VS 'itemized' (Itemized Breakdown)
+  // Mutual Exclusion Mode Selection: 'quick' vs 'itemized'
   String _entryMode = 'quick';
 
   String _paymentSource = 'mess_fund'; // mess_fund, member_pocket, split
@@ -67,6 +68,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       final e = widget.existingEntry!;
       _descriptionController.text = e.description;
       _amountController.text = e.amount.toStringAsFixed(2);
+      _noteController.text = e.note;
       _ocrExtractedAmount = e.ocrExtractedAmount;
       _paymentSource = e.paymentSource;
       _amountFromMessController.text = e.amountFromMess > 0 ? e.amountFromMess.toStringAsFixed(0) : '';
@@ -97,6 +99,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   void dispose() {
     _descriptionController.dispose();
     _amountController.dispose();
+    _noteController.dispose();
     _amountFromMessController.dispose();
     _amountFromMemberController.dispose();
     for (final item in _itemControllers) {
@@ -138,12 +141,8 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       if (name.isNotEmpty) itemNames.add(name);
     }
 
-    if (sum > 0) {
-      _amountController.text = sum.toStringAsFixed(2);
-    }
-    if (itemNames.isNotEmpty && _descriptionController.text.isEmpty) {
-      _descriptionController.text = itemNames.join(', ');
-    }
+    _amountController.text = sum.toStringAsFixed(2);
+    _descriptionController.text = itemNames.join(', ');
   }
 
   Future<void> _pickAndScanReceipt(ImageSource source) async {
@@ -255,7 +254,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
             ],
 
             if (ocr.parsedItems.isNotEmpty) ...[
-              const Text('Detected Items (Tap + to add to breakdown):',
+              const Text('Detected Items (Tap + to add to itemized bill):',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Container(
@@ -328,11 +327,13 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   void _submit() {
     if (_formKey.currentState!.validate()) {
       double amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
-
+      String description = _descriptionController.text.trim();
       final List<GroceryItem> parsedItems = [];
 
       if (_entryMode == 'itemized') {
         amount = 0.0;
+        final itemNames = <String>[];
+
         for (final item in _itemControllers) {
           final iName = item['name']?.text.trim() ?? '';
           final iPriceStr = item['price']?.text.trim() ?? '';
@@ -340,17 +341,21 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
           if (iName.isNotEmpty && iPrice > 0) {
             parsedItems.add(GroceryItem(name: iName, price: iPrice));
             amount += iPrice;
+            itemNames.add(iName);
           }
         }
+
         if (parsedItems.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('⚠️ Please add at least 1 itemized item in Itemized Mode'),
+              content: Text('⚠️ Please add at least 1 item with price in Itemized Mode'),
               backgroundColor: Colors.red,
             ),
           );
           return;
         }
+
+        description = itemNames.join(', ');
         _amountController.text = amount.toStringAsFixed(2);
       }
 
@@ -392,6 +397,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       }
 
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      final noteStr = _noteController.text.trim();
 
       final authState = context.read<AuthBloc>().state;
       String uid = 'user';
@@ -416,8 +422,9 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
         final updatedEntry = widget.existingEntry!.copyWith(
           purchasedBy: targetUid,
           purchaserName: targetName,
-          description: _descriptionController.text.trim(),
+          description: description,
           amount: amount,
+          note: noteStr,
           paymentSource: _paymentSource,
           amountFromMess: amtMess,
           amountFromMember: amtMember,
@@ -450,8 +457,9 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
           id: 'groc_${DateTime.now().millisecondsSinceEpoch}',
           purchasedBy: targetUid,
           purchaserName: targetName,
-          description: _descriptionController.text.trim(),
+          description: description,
           amount: amount,
+          note: noteStr,
           paymentSource: _paymentSource,
           amountFromMess: amtMess,
           amountFromMember: amtMember,
@@ -570,7 +578,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Select Grocery Entry Mode (Choose One):',
+                          'Select Entry Mode (Choose One):',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                         const SizedBox(height: 8),
@@ -702,7 +710,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Total Amount & Date',
+                              Text('Quick Total Amount & Date',
                                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -838,8 +846,20 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Itemized Bill Breakdown',
-                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                              Row(
+                                children: [
+                                  Text('Itemized Bill Breakdown',
+                                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                        color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                                    child: const Text('Itemized Mode',
+                                        style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
                               TextButton.icon(
                                 onPressed: () => _addBreakdownItem(),
                                 icon: const Icon(Icons.add_rounded, size: 18),
@@ -913,17 +933,64 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                             ),
 
                           const Divider(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Calculated Total Bill:',
-                                  style: TextStyle(fontWeight: FontWeight.bold)),
-                              Text(
-                                '৳${_amountController.text.isEmpty ? "0.00" : _amountController.text}',
-                                style: const TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+
+                          // STRICT READ-ONLY CALCULATED TOTAL DISPLAY (NO MANUAL INPUT)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green.shade300),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Calculated Total Amount',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                                    Text('Auto-computed from items above (No manual input allowed)',
+                                        style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                  ],
+                                ),
+                                Text(
+                                  '৳${_amountController.text.isEmpty ? "0.00" : _amountController.text}',
+                                  style: const TextStyle(
+                                      fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Date Selector for Itemized Mode
+                          InkWell(
+                            onTap: _selectDate,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade400),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            ],
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.calendar_today_rounded, size: 18),
+                                      SizedBox(width: 8),
+                                      Text('Purchase Date', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  Text(
+                                    DateFormat('dd MMM yyyy').format(_selectedDate),
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -931,6 +998,32 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                   ),
                   const SizedBox(height: 20),
                 ],
+
+                // ── OPTIONAL NOTE FIELD (FOR BOTH MODES) ──────────────
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Additional Note (Optional)',
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _noteController,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. Bought from Karwan Bazar market',
+                            prefixIcon: const Icon(Icons.sticky_note_2_rounded),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
                 // ── Required Payment Funding Source Selector ─────────
                 Card(
