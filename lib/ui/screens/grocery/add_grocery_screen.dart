@@ -591,28 +591,36 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                         const SizedBox(height: 8),
-                        SegmentedButton<String>(
-                          segments: const [
-                            ButtonSegment<String>(
-                              value: 'quick',
-                              label: Text('📝 Quick Total & Description'),
-                              icon: Icon(Icons.notes_rounded, size: 18),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ChoiceChip(
+                              avatar: const Icon(Icons.notes_rounded, size: 16),
+                              label: const Text('📝 Quick Total & Description'),
+                              selected: _entryMode == 'quick',
+                              onSelected: (selected) {
+                                if (selected) {
+                                  setState(() {
+                                    _entryMode = 'quick';
+                                  });
+                                }
+                              },
                             ),
-                            ButtonSegment<String>(
-                              value: 'itemized',
-                              label: Text('🛒 Itemized Bill Breakdown'),
-                              icon: Icon(Icons.receipt_long_rounded, size: 18),
+                            ChoiceChip(
+                              avatar: const Icon(Icons.receipt_long_rounded, size: 16),
+                              label: const Text('🛒 Itemized Bill Breakdown'),
+                              selected: _entryMode == 'itemized',
+                              onSelected: (selected) {
+                                if (selected) {
+                                  setState(() {
+                                    _entryMode = 'itemized';
+                                    if (_itemControllers.isEmpty) _addBreakdownItem();
+                                  });
+                                }
+                              },
                             ),
                           ],
-                          selected: {_entryMode},
-                          onSelectionChanged: (Set<String> newSelection) {
-                            setState(() {
-                              _entryMode = newSelection.first;
-                              if (_entryMode == 'itemized' && _itemControllers.isEmpty) {
-                                _addBreakdownItem();
-                              }
-                            });
-                          },
                         ),
                       ],
                     ),

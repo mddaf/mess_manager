@@ -221,38 +221,42 @@ class SettlementScreen extends StatelessWidget {
                           ],
                         ),
                         const Divider(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            Column(
-                              children: [
-                                Text('Total Mess Deposits',
-                                    style: TextStyle(fontSize: 11, color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8))),
-                                const SizedBox(height: 2),
-                                Text(
-                                  settlement.memberBalances.fold<double>(0.0, (s, m) => s + m.totalDeposit).toCurrency(),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blue),
-                                ),
-                              ],
-                            ),
-                            Column(
-                              children: [
-                                Text('Remaining Cash Balance',
-                                    style: TextStyle(fontSize: 11, color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8))),
-                                const SizedBox(height: 2),
-                                Text(
-                                  (settlement.memberBalances.fold<double>(0.0, (s, m) => s + m.totalDeposit) - settlement.totalGroceryCost).toCurrency(),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: (settlement.memberBalances.fold<double>(0.0, (s, m) => s + m.totalDeposit) - settlement.totalGroceryCost) >= 0
-                                        ? Colors.green
-                                        : Colors.red,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              Column(
+                                children: [
+                                  Text('Total Mess Deposits',
+                                      style: TextStyle(fontSize: 11, color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8))),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    settlement.memberBalances.fold<double>(0.0, (s, m) => s + m.totalDeposit).toCurrency(),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blue),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                              const SizedBox(width: 16),
+                              Column(
+                                children: [
+                                  Text('Remaining Cash Balance',
+                                      style: TextStyle(fontSize: 11, color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8))),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    (settlement.memberBalances.fold<double>(0.0, (s, m) => s + m.totalDeposit) - settlement.totalGroceryCost).toCurrency(),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: (settlement.memberBalances.fold<double>(0.0, (s, m) => s + m.totalDeposit) - settlement.totalGroceryCost) >= 0
+                                          ? Colors.green
+                                          : Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

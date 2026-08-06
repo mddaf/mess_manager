@@ -375,120 +375,173 @@ class DepositScreen extends StatelessWidget {
                                   else if (isRejected)
                                     const Text('❌ Rejected by Manager',
                                         style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                                  if ((isManager && (isPending || isPendingDelete)) || (canModify && !isPendingDelete)) ...[
+                                    const SizedBox(height: 6),
+                                    Wrap(
+                                      spacing: 4,
+                                      runSpacing: 4,
+                                      children: [
+                                        if (isManager && (isPending || isPendingDelete)) ...[
+                                          InkWell(
+                                            onTap: () async {
+                                              if (isPendingDelete) {
+                                                await depositRepo.deleteDeposit(
+                                                  messId: messId,
+                                                  depositId: dep.id,
+                                                  memberId: dep.memberId,
+                                                  amount: dep.amount,
+                                                  status: dep.status,
+                                                );
+                                              } else {
+                                                await depositRepo.updateDepositStatus(
+                                                  messId: messId,
+                                                  depositId: dep.id,
+                                                  memberId: dep.memberId,
+                                                  amount: dep.amount,
+                                                  newStatus: 'approved',
+                                                  previousStatus: dep.status,
+                                                );
+                                              }
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                  color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.check_circle_rounded, size: 14, color: Colors.green),
+                                                  SizedBox(width: 4),
+                                                  Text('Approve',
+                                                      style: TextStyle(
+                                                          fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold)),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          InkWell(
+                                            onTap: () async {
+                                              await depositRepo.updateDepositStatus(
+                                                messId: messId,
+                                                depositId: dep.id,
+                                                memberId: dep.memberId,
+                                                amount: dep.amount,
+                                                newStatus: 'rejected',
+                                                previousStatus: dep.status,
+                                              );
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                  color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.cancel_rounded, size: 14, color: Colors.red),
+                                                  SizedBox(width: 4),
+                                                  Text('Reject',
+                                                      style: TextStyle(
+                                                          fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold)),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        if (canModify && !isPendingDelete) ...[
+                                          InkWell(
+                                            onTap: () {
+                                              if (isFromGrocery) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      '🛒 This deposit was auto-created from Grocery. '
+                                                      'Please edit or delete it from the Grocery tab.',
+                                                    ),
+                                                    backgroundColor: Colors.blue,
+                                                  ),
+                                                );
+                                              } else {
+                                                _showAddOrEditDepositDialog(
+                                                  context,
+                                                  members: members,
+                                                  isManager: isManager,
+                                                  currentUserId: currentUserId,
+                                                  existingDeposit: dep,
+                                                );
+                                              }
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                  color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.edit_rounded,
+                                                      size: 14, color: isFromGrocery ? Colors.grey : Colors.blue),
+                                                  const SizedBox(width: 4),
+                                                  Text('Edit',
+                                                      style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: isFromGrocery ? Colors.grey : Colors.blue,
+                                                          fontWeight: FontWeight.bold)),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          InkWell(
+                                            onTap: () {
+                                              if (isFromGrocery) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      '🛒 This deposit was auto-created from Grocery. '
+                                                      'Please edit or delete it from the Grocery tab.',
+                                                    ),
+                                                    backgroundColor: Colors.blue,
+                                                  ),
+                                                );
+                                              } else {
+                                                _handleDeleteDeposit(
+                                                  context,
+                                                  deposit: dep,
+                                                  isManager: isManager,
+                                                  currentUserId: currentUserId,
+                                                );
+                                              }
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                  color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.delete_outline_rounded,
+                                                      size: 14, color: isFromGrocery ? Colors.grey : Colors.red),
+                                                  const SizedBox(width: 4),
+                                                  Text('Delete',
+                                                      style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: isFromGrocery ? Colors.grey : Colors.red,
+                                                          fontWeight: FontWeight.bold)),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
                                 ],
                               ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    dep.amount.toCurrency(),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: isRejected ? Colors.grey : theme.colorScheme.primary,
-                                    ),
-                                  ),
-                                  if (isManager && (isPending || isPendingDelete)) ...[
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                      icon: const Icon(Icons.check_circle_rounded, color: Colors.green),
-                                      tooltip: 'Approve',
-                                      onPressed: () async {
-                                        if (isPendingDelete) {
-                                          await depositRepo.deleteDeposit(
-                                            messId: messId,
-                                            depositId: dep.id,
-                                            memberId: dep.memberId,
-                                            amount: dep.amount,
-                                            status: dep.status,
-                                          );
-                                        } else {
-                                          await depositRepo.updateDepositStatus(
-                                            messId: messId,
-                                            depositId: dep.id,
-                                            memberId: dep.memberId,
-                                            amount: dep.amount,
-                                            newStatus: 'approved',
-                                            previousStatus: dep.status,
-                                          );
-                                        }
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.cancel_rounded, color: Colors.red),
-                                      tooltip: 'Reject',
-                                      onPressed: () async {
-                                        await depositRepo.updateDepositStatus(
-                                          messId: messId,
-                                          depositId: dep.id,
-                                          memberId: dep.memberId,
-                                          amount: dep.amount,
-                                          newStatus: 'rejected',
-                                          previousStatus: dep.status,
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                  if (canModify && !isPendingDelete) ...[
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.edit_rounded,
-                                        size: 20,
-                                        color: isFromGrocery ? Colors.grey : null,
-                                      ),
-                                      tooltip: isFromGrocery ? 'Edit in Grocery Tab' : 'Edit Deposit',
-                                      onPressed: () {
-                                        if (isFromGrocery) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                '🛒 This deposit was auto-created from Grocery. '
-                                                'Please edit or delete it from the Grocery tab.',
-                                              ),
-                                              backgroundColor: Colors.blue,
-                                            ),
-                                          );
-                                        } else {
-                                          _showAddOrEditDepositDialog(
-                                            context,
-                                            members: members,
-                                            isManager: isManager,
-                                            currentUserId: currentUserId,
-                                            existingDeposit: dep,
-                                          );
-                                        }
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete_outline_rounded,
-                                        size: 20,
-                                        color: isFromGrocery ? Colors.grey : Colors.red,
-                                      ),
-                                      tooltip: isFromGrocery ? 'Delete in Grocery Tab' : 'Delete Deposit',
-                                      onPressed: () {
-                                        if (isFromGrocery) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                '🛒 This deposit was auto-created from Grocery. '
-                                                'Please edit or delete it from the Grocery tab.',
-                                              ),
-                                              backgroundColor: Colors.blue,
-                                            ),
-                                          );
-                                        } else {
-                                          _handleDeleteDeposit(
-                                            context,
-                                            deposit: dep,
-                                            isManager: isManager,
-                                            currentUserId: currentUserId,
-                                          );
-                                        }
-                                      },
-                                    ),
-                                  ],
-                                ],
+                              trailing: Text(
+                                dep.amount.toCurrency(),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isRejected ? Colors.grey : theme.colorScheme.primary,
+                                ),
                               ),
                             ),
                           );
