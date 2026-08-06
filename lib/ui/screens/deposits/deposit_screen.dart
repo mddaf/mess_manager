@@ -333,6 +333,9 @@ class DepositScreen extends StatelessWidget {
                           final isOwnDeposit = (dep.memberId == currentUserId);
                           final canModify = isManager || isOwnDeposit;
 
+                          final isFromGrocery =
+                              dep.id.startsWith('dep_groc_') || dep.note.toLowerCase().contains('grocery reimbursement');
+
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                             child: ListTile(
@@ -347,7 +350,9 @@ class DepositScreen extends StatelessWidget {
                                       ? Icons.hourglass_top_rounded
                                       : isRejected
                                           ? Icons.block_rounded
-                                          : Icons.attach_money_rounded,
+                                          : isFromGrocery
+                                              ? Icons.shopping_cart_checkout_rounded
+                                              : Icons.attach_money_rounded,
                                 ),
                               ),
                               title: Text(
@@ -358,7 +363,10 @@ class DepositScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('${dep.date} • ${dep.note}'),
-                                  if (isPending)
+                                  if (isFromGrocery)
+                                    const Text('🛒 Auto-created from Grocery (Edit/Delete in Grocery tab)',
+                                        style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold))
+                                  else if (isPending)
                                     const Text('⏳ Pending Manager Approval',
                                         style: TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold))
                                   else if (isPendingDelete)
@@ -423,25 +431,61 @@ class DepositScreen extends StatelessWidget {
                                   ],
                                   if (canModify && !isPendingDelete) ...[
                                     IconButton(
-                                      icon: const Icon(Icons.edit_rounded, size: 20),
-                                      tooltip: 'Edit Deposit',
-                                      onPressed: () => _showAddOrEditDepositDialog(
-                                        context,
-                                        members: members,
-                                        isManager: isManager,
-                                        currentUserId: currentUserId,
-                                        existingDeposit: dep,
+                                      icon: Icon(
+                                        Icons.edit_rounded,
+                                        size: 20,
+                                        color: isFromGrocery ? Colors.grey : null,
                                       ),
+                                      tooltip: isFromGrocery ? 'Edit in Grocery Tab' : 'Edit Deposit',
+                                      onPressed: () {
+                                        if (isFromGrocery) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                '🛒 This deposit was auto-created from Grocery. '
+                                                'Please edit or delete it from the Grocery tab.',
+                                              ),
+                                              backgroundColor: Colors.blue,
+                                            ),
+                                          );
+                                        } else {
+                                          _showAddOrEditDepositDialog(
+                                            context,
+                                            members: members,
+                                            isManager: isManager,
+                                            currentUserId: currentUserId,
+                                            existingDeposit: dep,
+                                          );
+                                        }
+                                      },
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
-                                      tooltip: 'Delete Deposit',
-                                      onPressed: () => _handleDeleteDeposit(
-                                        context,
-                                        deposit: dep,
-                                        isManager: isManager,
-                                        currentUserId: currentUserId,
+                                      icon: Icon(
+                                        Icons.delete_outline_rounded,
+                                        size: 20,
+                                        color: isFromGrocery ? Colors.grey : Colors.red,
                                       ),
+                                      tooltip: isFromGrocery ? 'Delete in Grocery Tab' : 'Delete Deposit',
+                                      onPressed: () {
+                                        if (isFromGrocery) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                '🛒 This deposit was auto-created from Grocery. '
+                                                'Please edit or delete it from the Grocery tab.',
+                                              ),
+                                              backgroundColor: Colors.blue,
+                                            ),
+                                          );
+                                        } else {
+                                          _handleDeleteDeposit(
+                                            context,
+                                            deposit: dep,
+                                            isManager: isManager,
+                                            currentUserId: currentUserId,
+                                          );
+                                        }
+                                      },
                                     ),
                                   ],
                                 ],

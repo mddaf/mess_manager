@@ -37,6 +37,9 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   final _amountFromMemberController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
 
+  // Mode Selection: 'quick' (Total Amount & Description) VS 'itemized' (Itemized Breakdown)
+  String _entryMode = 'quick';
+
   String _paymentSource = 'mess_fund'; // mess_fund, member_pocket, split
   String? _selectedPurchaserId;
   String? _selectedPurchaserName;
@@ -75,11 +78,17 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
           _selectedDate = DateTime.parse(e.date);
         } catch (_) {}
       }
-      for (final item in e.items) {
-        _itemControllers.add({
-          'name': TextEditingController(text: item.name),
-          'price': TextEditingController(text: item.price.toStringAsFixed(0)),
-        });
+
+      if (e.items.isNotEmpty) {
+        _entryMode = 'itemized';
+        for (final item in e.items) {
+          _itemControllers.add({
+            'name': TextEditingController(text: item.name),
+            'price': TextEditingController(text: item.price.toStringAsFixed(0)),
+          });
+        }
+      } else {
+        _entryMode = 'quick';
       }
     }
   }
@@ -117,7 +126,7 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   }
 
   void _calculateBreakdownTotal() {
-    if (_itemControllers.isEmpty) return;
+    if (_entryMode != 'itemized' || _itemControllers.isEmpty) return;
     double sum = 0.0;
     final itemNames = <String>[];
 
@@ -229,20 +238,9 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
               children: [
                 const Icon(Icons.psychology_rounded, color: Colors.green, size: 28),
                 const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('OCR Receipt Recognized',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text(
-                        ocr.extractedTotal != null
-                            ? '🎯 Total Detected: ৳${ocr.extractedTotal!.toStringAsFixed(2)}'
-                            : 'Review detected candidate numbers below',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
+                const Expanded(
+                  child: Text('OCR Receipt Recognized',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ],
             ),
@@ -281,12 +279,15 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                           IconButton(
                             icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.blue),
                             onPressed: () {
+                              setState(() {
+                                _entryMode = 'itemized';
+                              });
                               _addBreakdownItem(
                                 name: item.name,
                                 price: item.price.toStringAsFixed(0),
                               );
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Added "${item.name}" to breakdown')),
+                                SnackBar(content: Text('Added "${item.name}" to itemized bill breakdown')),
                               );
                             },
                           ),
@@ -326,7 +327,33 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      final amount = double.parse(_amountController.text.trim());
+      double amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
+
+      final List<GroceryItem> parsedItems = [];
+
+      if (_entryMode == 'itemized') {
+        amount = 0.0;
+        for (final item in _itemControllers) {
+          final iName = item['name']?.text.trim() ?? '';
+          final iPriceStr = item['price']?.text.trim() ?? '';
+          final iPrice = double.tryParse(iPriceStr) ?? 0.0;
+          if (iName.isNotEmpty && iPrice > 0) {
+            parsedItems.add(GroceryItem(name: iName, price: iPrice));
+            amount += iPrice;
+          }
+        }
+        if (parsedItems.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Please add at least 1 itemized item in Itemized Mode'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        _amountController.text = amount.toStringAsFixed(2);
+      }
+
       if (amount <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -384,16 +411,6 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       final targetName = (isManager && _selectedPurchaserName != null) ? _selectedPurchaserName! : name;
 
       final status = isManager ? 'approved' : 'pending';
-
-      final List<GroceryItem> parsedItems = [];
-      for (final item in _itemControllers) {
-        final iName = item['name']?.text.trim() ?? '';
-        final iPriceStr = item['price']?.text.trim() ?? '';
-        final iPrice = double.tryParse(iPriceStr) ?? 0.0;
-        if (iName.isNotEmpty && iPrice > 0) {
-          parsedItems.add(GroceryItem(name: iName, price: iPrice));
-        }
-      }
 
       if (widget.existingEntry != null) {
         final updatedEntry = widget.existingEntry!.copyWith(
@@ -542,6 +559,50 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // ── MUTUAL EXCLUSION MODE SELECTOR ─────────────────────
+                Card(
+                  elevation: 3,
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Select Grocery Entry Mode (Choose One):',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        const SizedBox(height: 8),
+                        SegmentedButton<String>(
+                          segments: const [
+                            ButtonSegment<String>(
+                              value: 'quick',
+                              label: Text('📝 Quick Total & Description'),
+                              icon: Icon(Icons.notes_rounded, size: 18),
+                            ),
+                            ButtonSegment<String>(
+                              value: 'itemized',
+                              label: Text('🛒 Itemized Bill Breakdown'),
+                              icon: Icon(Icons.receipt_long_rounded, size: 18),
+                            ),
+                          ],
+                          selected: {_entryMode},
+                          onSelectionChanged: (Set<String> newSelection) {
+                            setState(() {
+                              _entryMode = newSelection.first;
+                              if (_entryMode == 'itemized' && _itemControllers.isEmpty) {
+                                _addBreakdownItem();
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // ── Manager Target Member Selector ────────────────────
                 if (isManager && members.isNotEmpty) ...[
                   Card(
@@ -628,77 +689,248 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // ── Amount & Date Section (Positive Validation) ──────
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Total Amount & Date',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: TextFormField(
-                                controller: _amountController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                                decoration: InputDecoration(
-                                  labelText: 'Total Amount (৳)',
-                                  prefixIcon: const Padding(
-                                    padding: EdgeInsets.all(12.0),
-                                    child: Text('৳',
-                                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                                  ),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) return 'Enter total amount';
-                                  final numVal = double.tryParse(v.trim());
-                                  if (numVal == null || numVal <= 0) {
-                                    return 'Must be a positive number (> 0)';
-                                  }
-                                  return null;
-                                },
+                // ── MODE 1: QUICK TOTAL & DESCRIPTION MODE ───────────
+                if (_entryMode == 'quick') ...[
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Total Amount & Date',
+                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                    color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                                child: const Text('Quick Mode',
+                                    style: TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 2,
-                              child: InkWell(
-                                onTap: _selectDate,
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey.shade400),
-                                    borderRadius: BorderRadius.circular(12),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: TextFormField(
+                                  controller: _amountController,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                                  decoration: InputDecoration(
+                                    labelText: 'Total Amount (৳)',
+                                    prefixIcon: const Padding(
+                                      padding: EdgeInsets.all(12.0),
+                                      child: Text('৳',
+                                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                                    ),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
-                                  child: Column(
+                                  validator: (v) {
+                                    if (_entryMode != 'quick') return null;
+                                    if (v == null || v.trim().isEmpty) return 'Enter total amount';
+                                    final numVal = double.tryParse(v.trim());
+                                    if (numVal == null || numVal <= 0) {
+                                      return 'Must be a positive number (> 0)';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 2,
+                                child: InkWell(
+                                  onTap: _selectDate,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey.shade400),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        const Icon(Icons.calendar_today_rounded, size: 18),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          DateFormat('dd MMM yyyy').format(_selectedDate),
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Quick Description & Category Presets
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Grocery Description / Items',
+                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _descriptionController,
+                            decoration: InputDecoration(
+                              hintText: 'e.g. Rice 5kg, Oil 2L, Vegetables',
+                              prefixIcon: const Icon(Icons.description_rounded),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            validator: (v) {
+                              if (_entryMode != 'quick') return null;
+                              return (v == null || v.trim().isEmpty) ? 'Enter grocery description' : null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          const Text('Preset Categories:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: _categories.map((cat) {
+                              return ActionChip(
+                                label: Text(cat['label']!),
+                                onPressed: () {
+                                  if (_descriptionController.text.isEmpty) {
+                                    _descriptionController.text = cat['text']!;
+                                  } else {
+                                    _descriptionController.text += ', ${cat['text']}';
+                                  }
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // ── MODE 2: ITEMIZED BREAKDOWN BILL MODE ───────────────
+                if (_entryMode == 'itemized') ...[
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Itemized Bill Breakdown',
+                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                              TextButton.icon(
+                                onPressed: () => _addBreakdownItem(),
+                                icon: const Icon(Icons.add_rounded, size: 18),
+                                label: const Text('Add Item'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          if (_itemControllers.isEmpty)
+                            const Text(
+                              'No itemized breakdown added. Tap "+ Add Item" or scan a receipt.',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            )
+                          else
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _itemControllers.length,
+                              itemBuilder: (ctx, idx) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: Row(
                                     children: [
-                                      const Icon(Icons.calendar_today_rounded, size: 18),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        DateFormat('dd MMM yyyy').format(_selectedDate),
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                      Expanded(
+                                        flex: 3,
+                                        child: TextFormField(
+                                          controller: _itemControllers[idx]['name'],
+                                          decoration: const InputDecoration(
+                                            labelText: 'Item Name',
+                                            isDense: true,
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          validator: (v) {
+                                            if (_entryMode != 'itemized') return null;
+                                            if (v == null || v.trim().isEmpty) return 'Required';
+                                            return null;
+                                          },
+                                          onChanged: (_) => _calculateBreakdownTotal(),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 2,
+                                        child: TextFormField(
+                                          controller: _itemControllers[idx]['price'],
+                                          keyboardType: TextInputType.number,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Price (৳)',
+                                            isDense: true,
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          validator: (v) {
+                                            if (_entryMode != 'itemized') return null;
+                                            if (v == null || v.isEmpty) return 'Required';
+                                            final p = double.tryParse(v);
+                                            if (p == null || p <= 0) return 'Must be > 0';
+                                            return null;
+                                          },
+                                          onChanged: (_) => _calculateBreakdownTotal(),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                                        onPressed: () => _removeBreakdownItem(idx),
                                       ),
                                     ],
                                   ),
-                                ),
-                              ),
+                                );
+                              },
                             ),
-                          ],
-                        ),
-                      ],
+
+                          const Divider(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Calculated Total Bill:',
+                                  style: TextStyle(fontWeight: FontWeight.bold)),
+                              Text(
+                                '৳${_amountController.text.isEmpty ? "0.00" : _amountController.text}',
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
+                ],
 
                 // ── Required Payment Funding Source Selector ─────────
                 Card(
@@ -788,139 +1020,6 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
                             ],
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // ── Description & Category Presets ────────────────────
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Grocery Description / Items',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _descriptionController,
-                          decoration: InputDecoration(
-                            hintText: 'e.g. Rice 5kg, Oil 2L, Vegetables',
-                            prefixIcon: const Icon(Icons.description_rounded),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          validator: (v) =>
-                              (v == null || v.trim().isEmpty) ? 'Enter grocery description' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        const Text('Preset Categories:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: _categories.map((cat) {
-                            return ActionChip(
-                              label: Text(cat['label']!),
-                              onPressed: () {
-                                if (_descriptionController.text.isEmpty) {
-                                  _descriptionController.text = cat['text']!;
-                                } else {
-                                  _descriptionController.text += ', ${cat['text']}';
-                                }
-                              },
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // ── Multi-Item Breakdown Calculator ───────────────────
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Itemized Breakdown (Optional)',
-                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                            TextButton.icon(
-                              onPressed: () => _addBreakdownItem(),
-                              icon: const Icon(Icons.add_rounded, size: 18),
-                              label: const Text('Add Item'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-
-                        if (_itemControllers.isEmpty)
-                          const Text(
-                            'No itemized breakdown added. Tap "+ Add Item" or scan a receipt.',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          )
-                        else
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _itemControllers.length,
-                            itemBuilder: (ctx, idx) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      flex: 3,
-                                      child: TextFormField(
-                                        controller: _itemControllers[idx]['name'],
-                                        decoration: const InputDecoration(
-                                          labelText: 'Item Name',
-                                          isDense: true,
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        onChanged: (_) => _calculateBreakdownTotal(),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      flex: 2,
-                                      child: TextFormField(
-                                        controller: _itemControllers[idx]['price'],
-                                        keyboardType: TextInputType.number,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Price (৳)',
-                                          isDense: true,
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        validator: (v) {
-                                          if (v != null && v.isNotEmpty) {
-                                            final p = double.tryParse(v);
-                                            if (p == null || p <= 0) return 'Must be > 0';
-                                          }
-                                          return null;
-                                        },
-                                        onChanged: (_) => _calculateBreakdownTotal(),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                                      onPressed: () => _removeBreakdownItem(idx),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
                       ],
                     ),
                   ),
