@@ -1,4 +1,4 @@
-# 🍱 Meal Manager (মিল & মেস ম্যানেজার)
+# 🍱 Meal Manager (মিল ম্যানেজার)
 
 [![CI/CD Pipeline](https://github.com/mddaf/mess_manager/actions/workflows/ci_cd.yml/badge.svg)](https://github.com/mddaf/mess_manager/actions/workflows/ci_cd.yml)
 [![Build & Release APK](https://github.com/mddaf/mess_manager/actions/workflows/release_apk.yml/badge.svg)](https://github.com/mddaf/mess_manager/actions/workflows/release_apk.yml)
