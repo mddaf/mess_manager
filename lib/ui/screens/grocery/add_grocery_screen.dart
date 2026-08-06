@@ -84,10 +84,10 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       if (e.items.isNotEmpty) {
         _entryMode = 'itemized';
         for (final item in e.items) {
-          _itemControllers.add({
-            'name': TextEditingController(text: item.name),
-            'price': TextEditingController(text: item.price.toStringAsFixed(0)),
-          });
+          _addBreakdownItem(
+            name: item.name,
+            price: item.price.toStringAsFixed(0),
+          );
         }
       } else {
         _entryMode = 'quick';
@@ -110,10 +110,15 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
   }
 
   void _addBreakdownItem({String name = '', String price = ''}) {
+    final nameCtrl = TextEditingController(text: name);
+    final priceCtrl = TextEditingController(text: price);
+    nameCtrl.addListener(_calculateBreakdownTotal);
+    priceCtrl.addListener(_calculateBreakdownTotal);
+
     setState(() {
       _itemControllers.add({
-        'name': TextEditingController(text: name),
-        'price': TextEditingController(text: price),
+        'name': nameCtrl,
+        'price': priceCtrl,
       });
     });
     _calculateBreakdownTotal();
@@ -141,8 +146,10 @@ class _AddGroceryScreenState extends State<AddGroceryScreen> {
       if (name.isNotEmpty) itemNames.add(name);
     }
 
-    _amountController.text = sum.toStringAsFixed(2);
-    _descriptionController.text = itemNames.join(', ');
+    setState(() {
+      _amountController.text = sum.toStringAsFixed(2);
+      _descriptionController.text = itemNames.join(', ');
+    });
   }
 
   Future<void> _pickAndScanReceipt(ImageSource source) async {
