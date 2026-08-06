@@ -42,17 +42,17 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
-      - name: 🔍 Static Code Analysis (Regression Check)
+      - name: 🔍 Static Code Analysis
         run: flutter analyze
 
       - name: 🧪 Run Unit & Widget Tests
         run: flutter test
 
   # -------------------------------------------------------------
-  # 🤖 JOB 2: Build Android Release APK Artifact (CD)
+  # 🤖 JOB 2: Build Android Release APK (Artifact)
   # -------------------------------------------------------------
   build_android:
-    name: 🤖 Build Android Release APK
+    name: 🤖 Build Android APK Artifact
     needs: analyze_and_test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
@@ -76,8 +76,10 @@ jobs:
       - name: 📦 Install Dependencies
         run: flutter pub get
 
-      - name: 🌐 Generate Localizations
-        run: flutter gen-l10n
+      - name: 🌐 Generate Localizations & Code
+        run: |
+          flutter gen-l10n
+          dart run build_runner build --delete-conflicting-outputs
 
       - name: 🛠️ Build Android Release APK
         run: flutter build apk --release
@@ -90,10 +92,10 @@ jobs:
           retention-days: 30
 
   # -------------------------------------------------------------
-  # 🌐 JOB 3: Build Web Release Bundle (CD)
+  # 🌐 JOB 3: Build Web Release Bundle (Artifact)
   # -------------------------------------------------------------
   build_web:
-    name: 🌐 Build Web Bundle
+    name: 🌐 Build Web Bundle Artifact
     needs: analyze_and_test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
@@ -111,8 +113,10 @@ jobs:
       - name: 📦 Install Dependencies
         run: flutter pub get
 
-      - name: 🌐 Generate Localizations
-        run: flutter gen-l10n
+      - name: 🌐 Generate Localizations & Code
+        run: |
+          flutter gen-l10n
+          dart run build_runner build --delete-conflicting-outputs
 
       - name: 🛠️ Build Web Release Bundle
         run: flutter build web --release

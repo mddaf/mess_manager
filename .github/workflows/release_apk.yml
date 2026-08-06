@@ -43,6 +43,9 @@ jobs:
           flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
 
+      - name: Static Code Analysis
+        run: flutter analyze
+
       - name: Run Tests
         run: flutter test
 
